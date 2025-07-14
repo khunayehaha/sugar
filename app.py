@@ -195,7 +195,4 @@ def delete_case(id):
         return jsonify({"message": "Case deleted successfully"}), 200
     return jsonify({"message": "Case not found"}), 404
 
-# --- Run the Flask App ---
-if __name__ == '__main__':
-    # DEBUG: True ช่วยให้เห็น error และรีโหลดอัตโนมัติเมื่อโค้ดเปลี่ยน (อย่าใช้ใน Production)
-    app.run(debug=True, port=5000) # รันบนพอร์ต 5000
+
