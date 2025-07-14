@@ -31,25 +31,11 @@ const borrowReturnForm = document.getElementById('borrowReturnForm');
 
 
 // --- Global Variables (ปรับปรุงใหม่) ---
-// ไม่ต้องมี let cases = [] หรือ currentEditingCaseId = null แล้ว
-// เพราะข้อมูลจะถูกดึงจาก Server และ re-render ใหม่เสมอ
-// แต่เก็บ USER_IDS ไว้สำหรับ demo การเบิก/คืน (ในอนาคตจะมาจาก Backend)
-const USER_IDS = [
-    { id: "user1", name: "เจนนิเฟอร์" },
-    { id: "user2", name: "โรเบิร์ต" },
-    { id: "user3", name: "สุชาดา" },
-    { id: "user4", name: "วิชัย" },
-    { id: "user5", name: "เมษายน" },
-    { id: "user6", name: "ธนากร" }
-];
 // กำหนด URL ของ Backend API
-const API_BASE_URL = 'https://sugar-vzh6.onrender.com/'; // Backend ของเราอยู่ที่นี่
+// เมื่อ Frontend และ Backend รันบน Render Service เดียวกัน ให้ใช้ Relative Path
+const API_BASE_URL = ''; // แก้ไขตรงนี้: ไม่ต้องใส่โดเมนเต็มอีกต่อไป
 
-// --- Utility Functions (ปรับปรุงเล็กน้อย) ---
-
-// generateUniqueId() ไม่จำเป็นแล้ว เพราะ Backend จะสร้าง ID ให้
-// saveCasesToLocalStorage() และ loadCasesFromLocalStorage() ถูกลบทิ้งไปแล้ว
-// generateInitialDummyData() ถูกย้ายไปที่ Backend
+// --- Utility Functions ---
 
 function formatDate(dateString) {
     if (!dateString) return '';
@@ -63,20 +49,11 @@ function formatDate(dateString) {
     });
 }
 
-function getUserNameById(userId) { // ยังคงอยู่แต่ตอนนี้อาจจะใช้ไม่เยอะแล้ว
-    const user = USER_IDS.find(u => u.id === userId);
-    return user ? user.name : 'ไม่ระบุ';
-}
+// getUserNameById และ getUserIdByName ไม่จำเป็นต้องใช้แล้ว
+// หากข้อมูล borrowed_by_user_name มาจาก Backend โดยตรง
 
-function getUserIdByName(userName) { // ยังคงอยู่แต่ตอนนี้อาจจะใช้ไม่เยอะแล้ว
-    const user = USER_IDS.find(u => u.name === userName);
-    return user ? user.id : null;
-}
-
-// --- Main Render Function (ปรับปรุงเล็กน้อย) ---
-// renderCases() จะรับข้อมูลมาจาก fetchCases แทน
-// และตอนนี้ renderCases จะไม่รับ filteredCases แล้ว ให้รับแค่ cases ตรงๆ เลย
-function renderCases(casesToDisplay) { // เปลี่ยนชื่อ parameter
+// --- Main Render Function ---
+function renderCases(casesToDisplay) {
     caseList.innerHTML = '';
 
     if (casesToDisplay.length === 0) {
@@ -86,12 +63,12 @@ function renderCases(casesToDisplay) { // เปลี่ยนชื่อ para
         noResultsMessage.style.display = 'none';
     }
 
-    casesToDisplay.forEach(c => { // เปลี่ยน c.caseName เป็น c.farmer_name เป็นต้น
+    casesToDisplay.forEach(c => {
         const row = caseList.insertRow();
         row.dataset.caseId = c.id;
 
-        row.insertCell().textContent = c.farmer_name; // ใช้ farmer_name จาก Backend
-        row.insertCell().textContent = c.farmer_account_no; // ใช้ farmer_account_no จาก Backend
+        row.insertCell().textContent = c.farmer_name;
+        row.insertCell().textContent = c.farmer_account_no;
         row.insertCell().textContent = c.cabinet_no;
         row.insertCell().textContent = c.shelf_no;
         row.insertCell().textContent = c.sequence_no;
@@ -156,7 +133,8 @@ function renderCases(casesToDisplay) { // เปลี่ยนชื่อ para
 // --- NEW: Fetch Cases from Backend ---
 async function fetchCases() {
     try {
-        const response = await fetch(API_BASE_URL);
+        // แก้ไขตรงนี้: ต้องชี้ไปที่ API endpoint สำหรับดึงข้อมูลทั้งหมด
+        const response = await fetch(`${API_BASE_URL}/api/cases`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -171,20 +149,18 @@ async function fetchCases() {
     }
 }
 
-// --- Add/Edit Case Functions (ปรับปรุงให้เรียก Backend) ---
+// --- Add/Edit Case Functions ---
 
 function openAddCaseModal() {
     modalTitle.textContent = 'เพิ่มแฟ้มคดีใหม่';
     caseForm.reset(); // Clear previous form data
     caseIdInput.value = ''; // Clear hidden ID
-    // currentEditingCaseId ไม่จำเป็นต้องเก็บแล้ว
     caseModal.classList.add('active'); // Show modal
 }
 
-// openEditCaseModal ต้องดึงข้อมูลจาก Backend มาแสดงใน Modal
 async function openEditCaseModal(id) {
     try {
-        const response = await fetch(`${API_BASE_URL}/${id}`);
+        const response = await fetch(`${API_BASE_URL}/api/cases/${id}`); // ใช้ /api/cases
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -230,7 +206,7 @@ async function saveCase(event) {
     try {
         let response;
         if (caseId) { // Editing existing case
-            response = await fetch(`${API_BASE_URL}/${caseId}`, {
+            response = await fetch(`${API_BASE_URL}/api/cases/${caseId}`, { // ใช้ /api/cases
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(caseData)
@@ -238,7 +214,7 @@ async function saveCase(event) {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             alert('แก้ไขข้อมูลแฟ้มคดีเรียบร้อยแล้ว');
         } else { // Adding new case
-            response = await fetch(API_BASE_URL, {
+            response = await fetch(`${API_BASE_URL}/api/cases`, { // ใช้ /api/cases
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(caseData)
@@ -258,7 +234,7 @@ async function saveCase(event) {
 async function deleteCase(id) {
     if (confirm('คุณต้องการลบแฟ้มคดีนี้หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้')) {
         try {
-            const response = await fetch(`${API_BASE_URL}/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/cases/${id}`, { // ใช้ /api/cases
                 method: 'DELETE'
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -273,20 +249,19 @@ async function deleteCase(id) {
 }
 
 
-// --- Borrow/Return Functions (ปรับปรุงให้เรียก Backend) ---
+// --- Borrow/Return Functions ---
 
-// openBorrowReturnModal ต้องดึงข้อมูลจาก Backend มาแสดงใน Modal
 async function openBorrowReturnModal(id, type) {
     try {
-        const response = await fetch(`${API_BASE_URL}/${id}`);
+        const response = await fetch(`${API_BASE_URL}/api/cases/${id}`); // ใช้ /api/cases
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const caseToHandle = await response.json();
 
         borrowReturnCaseIdInput.value = id;
-        currentFarmerNameSpan.textContent = caseToHandle.farmer_name; // ใช้ farmer_name จาก Backend
-        currentFarmerAccountNoSpan.textContent = caseToHandle.farmer_account_no; // ใช้ farmer_account_no จาก Backend
+        currentFarmerNameSpan.textContent = caseToHandle.farmer_name;
+        currentFarmerAccountNoSpan.textContent = caseToHandle.farmer_account_no;
         currentCaseStatusSpan.textContent = caseToHandle.status === "In Room" ? "อยู่ในห้องสำนวน" : "ถูกเบิกไป";
 
         if (type === 'borrow') {
@@ -327,8 +302,8 @@ async function handleBorrowReturn(event) {
     };
 
     try {
-        const response = await fetch(`${API_BASE_URL}/${caseId}/status`, {
-            method: 'PATCH', // ใช้ PATCH สำหรับการอัปเดตบางส่วน
+        const response = await fetch(`${API_BASE_URL}/api/cases/${caseId}/status`, { // ใช้ /api/cases
+            method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
         });
@@ -352,27 +327,41 @@ async function handleBorrowReturn(event) {
 }
 
 
-// --- Search Functionality (ปรับปรุงให้ค้นหาจากข้อมูลล่าสุด) ---
+// --- Search Functionality ---
 async function performSearch() {
     const searchTerm = searchInput.value.trim().toLowerCase();
     
-    const allCases = await fetchCases(); // ดึงข้อมูลล่าสุดทั้งหมดมาก่อน
-    if (!allCases) return; // ถ้าดึงมาไม่ได้ ก็หยุด
-
+    // ตรงนี้เราไม่ได้ fetchCases เพื่อใช้แค่ใน Search แต่เราจะให้ fetchCases
+    // เป็นตัวจัดการการแสดงผลหลัก และแค่ filter ข้อมูลที่แสดง
+    // ดังนั้น ถ้าไม่มี searchTerm ให้ fetchCases โหลดข้อมูลทั้งหมดอีกครั้ง
     if (!searchTerm) {
-        renderCases(allCases); // ถ้าไม่มีคำค้นหา ให้แสดงทั้งหมด
+        fetchCases(); // โหลดข้อมูลทั้งหมดกลับมา
+        return;
+    }
+
+    // ถ้ามี searchTerm, ให้โหลดข้อมูลทั้งหมดมาก่อนแล้วค่อย filter
+    const allCases = await fetch(`${API_BASE_URL}/api/cases`)
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json();
+        })
+        .catch(error => {
+            console.error("Error fetching all cases for search:", error);
+            return []; // คืนค่าว่างถ้ามีข้อผิดพลาด
+        });
+
+    if (!allCases || allCases.length === 0) {
+        renderCases([]); // แสดงตารางว่างเปล่า
         return;
     }
 
     const filtered = allCases.filter(c => {
-        // Search by farmer name, farmer account number, cabinet, shelf, or sequence number
         const farmerNameMatch = c.farmer_name.toLowerCase().includes(searchTerm);
         const farmerAccountNoMatch = c.farmer_account_no.toLowerCase().includes(searchTerm);
         const cabinetMatch = c.cabinet_no.toString().includes(searchTerm);
         const shelfMatch = c.shelf_no.toString().includes(searchTerm);
         const sequenceMatch = c.sequence_no.toString().includes(searchTerm);
         
-        // เพิ่มการค้นหาจากคำเต็ม เช่น "ตู้ 3" "ชั้น 4" "ลำดับ 7"
         const fullCabinetMatch = `ตู้ ${c.cabinet_no}`.toLowerCase() === searchTerm;
         const fullShelfMatch = `ชั้น ${c.shelf_no}`.toLowerCase() === searchTerm;
         const fullSequenceMatch = `ลำดับ ${c.sequence_no}`.toLowerCase() === searchTerm;
@@ -389,20 +378,19 @@ async function performSearch() {
 }
 
 
-// --- Modal Close Functions (เหมือนเดิม) ---
+// --- Modal Close Functions ---
 function closeModal(modalElement) {
     modalElement.classList.remove('active');
 }
 
-// --- Event Listeners (ปรับปรุงเล็กน้อย) ---
+// --- Event Listeners ---
 
 document.addEventListener('DOMContentLoaded', () => {
-    fetchCases(); // เรียกใช้ fetchCases แทน loadCasesFromLocalStorage
+    fetchCases(); // เรียกใช้ fetchCases เมื่อหน้าเว็บโหลดเสร็จ
 
     // Event listener for all close buttons and cancel buttons
     document.querySelectorAll('.close-button, .cancel-button').forEach(button => {
         button.addEventListener('click', (e) => {
-            // Find the parent modal and close it
             let modal = e.target.closest('.modal');
             if (modal) {
                 closeModal(modal);
@@ -435,4 +423,3 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.value = '';
         fetchCases(); // Clear search and show all cases
     });
-});
