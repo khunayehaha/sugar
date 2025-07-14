@@ -1,5 +1,6 @@
+// script.js
+
 // --- DOM Elements ---
-// ตรวจสอบให้แน่ใจว่า ID เหล่านี้ตรงกับใน index.html ของคุณ
 const addCaseBtn = document.getElementById('addCaseBtn');
 const caseModal = document.getElementById('caseModal');
 const caseForm = document.getElementById('caseForm');
@@ -28,22 +29,18 @@ const borrowReturnCaseIdInput = document.getElementById('borrowReturnCaseId');
 const confirmBorrowReturnBtn = document.getElementById('confirmBorrowReturnBtn');
 const borrowReturnForm = document.getElementById('borrowReturnForm');
 
-// NEW: Admin Password Modal Elements
+// Admin Password Modal Elements
 const adminPasswordModal = document.getElementById('adminPasswordModal');
 const adminPasswordInput = document.getElementById('adminPasswordInput');
 const adminPasswordForm = document.getElementById('adminPasswordForm');
 
 // --- Global Variables ---
-// กำหนด URL ของ Backend API
-// ***แก้ไขตรงนี้: เมื่อ Frontend และ Backend รันบน Render Service เดียวกัน
-// ให้ใช้ Path สัมพัทธ์ (Relative Path) โดยไม่ต้องใส่โดเมนเต็ม***
-// หรือใช้ window.location.origin เพื่อความชัดเจนก็ได้
-const API_BASE_URL = ''; // หรือ `window.location.origin` ก็ได้ (แต่ '' สะดวกกว่า)
+const API_BASE_URL = ''; 
 
 // Variables to store context for admin password actions
-let currentAdminAction = null; // 'edit' or 'delete'
+let currentAdminAction = null; // 'edit_save' or 'delete'
 let currentAdminCaseId = null;
-let currentAdminCaseData = null; // Used for 'edit' action
+let currentAdminCaseData = null; // Used for 'edit_save' action
 
 // --- Utility Functions ---
 
@@ -51,7 +48,6 @@ function formatDate(dateString) {
     if (!dateString) return '';
     try {
         const date = new Date(dateString);
-        // ตรวจสอบว่าเป็น Invalid Date object หรือไม่
         if (isNaN(date.getTime())) {
             console.warn("Invalid date string provided to formatDate:", dateString);
             return 'Invalid Date';
@@ -71,9 +67,9 @@ function formatDate(dateString) {
 
 // --- Main Render Function ---
 function renderCases(casesToDisplay) {
-    caseList.innerHTML = ''; // Clear old content in the table
+    caseList.innerHTML = ''; 
 
-    if (!casesToDisplay || casesToDisplay.length === 0) { // Check if casesToDisplay is null/undefined
+    if (!casesToDisplay || casesToDisplay.length === 0) {
         noResultsMessage.style.display = 'block';
         return;
     } else {
@@ -84,7 +80,6 @@ function renderCases(casesToDisplay) {
         const row = caseList.insertRow();
         row.dataset.caseId = c.id;
 
-        // Check if c.farmer_name has a value before using it
         row.insertCell().textContent = c.farmer_name || 'ไม่ระบุชื่อ'; 
         row.insertCell().textContent = c.farmer_account_no || 'ไม่ระบุเลขบัญชี';
         row.insertCell().textContent = c.cabinet_no !== undefined ? c.cabinet_no : 'ไม่ระบุ';
@@ -97,10 +92,10 @@ function renderCases(casesToDisplay) {
         if (c.status === "In Room") {
             statusBadge.classList.add('in-room');
             statusBadge.textContent = 'อยู่ในห้องสำนวน';
-        } else if (c.status === "Borrowed") { // Add condition for clarity
+        } else if (c.status === "Borrowed") {
             statusBadge.classList.add('borrowed');
             statusBadge.textContent = 'ถูกเบิกไป';
-        } else { // Case where status does not match expected
+        } else {
             statusBadge.classList.add('unknown-status');
             statusBadge.textContent = 'ไม่ทราบสถานะ';
         }
@@ -111,7 +106,7 @@ function renderCases(casesToDisplay) {
         if (c.status === "Borrowed") {
             borrowerInfo = `เบิกโดย: ${c.borrowed_by_user_name || 'ไม่ระบุ'}<br>เมื่อ: ${formatDate(c.borrowed_date)}`;
         } else if (c.status === "In Room" && c.returned_date) {
-            const lastBorrower = c.borrowed_by_user_name || 'ไม่ระบุ'; // Use previous borrower name for returned cases
+            const lastBorrower = c.borrowed_by_user_name || 'ไม่ระบุ'; 
             borrowerInfo = `คืนแล้วโดย: ${lastBorrower}<br>เมื่อ: ${formatDate(c.returned_date)}`;
         } else {
             borrowerInfo = 'ไม่มีข้อมูลการเบิก/คืน';
@@ -140,7 +135,7 @@ function renderCases(casesToDisplay) {
             borrowBtn.classList.add('borrow-btn');
             borrowBtn.onclick = () => openBorrowReturnModal(c.id, 'borrow');
             actionDiv.appendChild(borrowBtn);
-        } else if (c.status === "Borrowed") { // Add condition for return button
+        } else if (c.status === "Borrowed") {
             const returnBtn = document.createElement('button');
             returnBtn.textContent = 'คืน';
             returnBtn.classList.add('return-btn');
@@ -151,23 +146,21 @@ function renderCases(casesToDisplay) {
     });
 }
 
-// --- NEW: Fetch Cases from Backend ---
+// --- Fetch Cases from Backend ---
 async function fetchCases() {
     try {
-        // ***FIXED: Call the correct API endpoint to fetch all data***
         const response = await fetch(`${API_BASE_URL}/api/cases`); 
         if (!response.ok) {
-            // Check HTTP status code and display appropriate message
-            const errorText = await response.text(); // Try to read error message from response
+            const errorText = await response.text();
             throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
         const data = await response.json();
-        renderCases(data); // Render data fetched from backend
-        return data; // Return all cases for search to use
+        renderCases(data); 
+        return data;
     } catch (error) {
         console.error("Error fetching cases:", error);
         alert(`ไม่สามารถดึงข้อมูลแฟ้มคดีได้: ${error.message} กรุณาลองใหม่ในภายหลัง`);
-        renderCases([]); // Clear table if error
+        renderCases([]); 
         return [];
     }
 }
@@ -176,22 +169,30 @@ async function fetchCases() {
 
 function openAddCaseModal() {
     modalTitle.textContent = 'เพิ่มแฟ้มคดีใหม่';
-    caseForm.reset(); // Clear previous form data
-    caseIdInput.value = ''; // Clear hidden ID
-    caseModal.classList.add('active'); // Show modal
+    caseForm.reset(); 
+    caseIdInput.value = ''; 
+    caseModal.classList.add('active'); 
 }
 
 async function openEditCaseModal(id) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/cases/${id}`);
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+            const errorData = await response.json(); // Attempt to read JSON error
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || response.statusText}`);
         }
         const caseToEdit = await response.json();
         
-        // Store case data and open admin password modal
-        openAdminPasswordModal('edit', id, caseToEdit);
+        modalTitle.textContent = 'แก้ไขข้อมูลแฟ้มคดี';
+        farmerNameInput.value = caseToEdit.farmer_name || '';
+        farmerAccountNoInput.value = caseToEdit.farmer_account_no || '';
+        cabinetNoInput.value = caseToEdit.cabinet_no !== undefined ? caseToEdit.cabinet_no : '';
+        shelfNoInput.value = caseToEdit.shelf_no !== undefined ? caseToEdit.shelf_no : '';
+        sequenceNoInput.value = caseToEdit.sequence_no !== undefined ? caseToEdit.sequence_no : '';
+        caseIdInput.value = caseToEdit.id;
+        
+        // Now open the main edit modal directly. Password check will happen on save.
+        caseModal.classList.add('active');
 
     } catch (error) {
         console.error("Error fetching case for edit:", error);
@@ -199,7 +200,7 @@ async function openEditCaseModal(id) {
     }
 }
 
-// NEW: Function to perform the actual case update after password verification
+// Function to perform the actual case update after password verification
 async function performUpdateCase(caseId, caseData, adminPassword) {
     const dataToSend = { ...caseData, admin_password: adminPassword };
 
@@ -217,9 +218,9 @@ async function performUpdateCase(caseId, caseData, adminPassword) {
         
         alert('แก้ไขข้อมูลแฟ้มคดีเรียบร้อยแล้ว');
         
-        fetchCases(); // Re-fetch and re-render all cases from backend
-        closeModal(caseModal); // Close the original case edit modal
-        closeModal(adminPasswordModal); // Close password modal
+        fetchCases(); 
+        closeModal(caseModal); 
+        closeModal(adminPasswordModal); 
     } catch (error) {
         console.error("Error saving case:", error);
         alert(`เกิดข้อผิดพลาดในการบันทึกข้อมูล: ${error.message} กรุณาลองใหม่`);
@@ -235,7 +236,7 @@ async function saveCase(event) {
     const cabinetNo = parseInt(cabinetNoInput.value);
     const shelfNo = parseInt(shelfNoInput.value);
     const sequenceNo = parseInt(sequenceNoInput.value);
-    const caseId = caseIdInput.value; // Will have a value if editing
+    const caseId = caseIdInput.value; 
 
     if (!farmerName || !farmerAccountNo || isNaN(cabinetNo) || isNaN(shelfNo) || isNaN(sequenceNo)) {
         alert('กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง (หมายเลขตู้, ชั้น, ลำดับ ต้องเป็นตัวเลข)');
@@ -251,19 +252,12 @@ async function saveCase(event) {
     };
 
     if (caseId) { // Editing existing case
-        // For editing, we now go through the admin password modal
-        // The actual save will be handled by performUpdateCase after password check
-        // This function will only be called if it's a new case (caseId is empty)
-        // or if it's called internally by performUpdateCase (which it won't be directly)
-        // So, this block should ideally not be reached for edits anymore if openEditCaseModal handles it.
-        // However, if the form is submitted directly (e.g., via Enter key), this might still fire.
-        // We need to ensure the saveCase function is only for adding, or has password logic.
-        // For simplicity, let's assume saveCase is only for adding new cases now.
-        // The edit flow will be: openEditCaseModal -> openAdminPasswordModal -> performUpdateCase.
-        // So, if caseId is present here, it means the form was submitted directly for an edit,
-        // which bypasses the password check. We should prevent this.
-        alert('โปรดแก้ไขข้อมูลผ่านปุ่ม "แก้ไข" และยืนยันรหัสผ่านผู้ดูแลระบบ');
-        return;
+        // Store current form data and open admin password modal for verification
+        currentAdminAction = 'edit_save';
+        currentAdminCaseId = caseId;
+        currentAdminCaseData = caseData; // Store the updated data from the form
+        closeModal(caseModal); // Close the main edit modal temporarily
+        openAdminPasswordModal(); // Open password modal
     } else { // Adding new case (no password required)
         try {
             const response = await fetch(`${API_BASE_URL}/api/cases`, {
@@ -273,13 +267,13 @@ async function saveCase(event) {
             });
             
             if (!response.ok) {
-                const errorData = await response.json(); // Try to read JSON error
+                const errorData = await response.json(); 
                 throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || response.statusText}`);
             }
             
             alert('เพิ่มแฟ้มคดีใหม่เรียบร้อยแล้ว');
             
-            fetchCases(); // Re-fetch and re-render all cases from backend
+            fetchCases(); 
             closeModal(caseModal);
         } catch (error) {
             console.error("Error saving case:", error);
@@ -290,16 +284,18 @@ async function saveCase(event) {
 
 async function deleteCase(id) {
     // Open admin password modal before attempting deletion
-    openAdminPasswordModal('delete', id);
+    currentAdminAction = 'delete';
+    currentAdminCaseId = id;
+    openAdminPasswordModal();
 }
 
-// NEW: Function to perform the actual case deletion after password verification
+// Function to perform the actual case deletion after password verification
 async function performDeleteCase(caseId, adminPassword) {
     if (confirm('คุณต้องการลบแฟ้มคดีนี้หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้')) {
         try {
             const response = await fetch(`${API_BASE_URL}/api/cases/${caseId}`, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' }, // DELETE with body needs Content-Type
+                headers: { 'Content-Type': 'application/json' }, 
                 body: JSON.stringify({ admin_password: adminPassword })
             });
             if (!response.ok) {
@@ -308,14 +304,14 @@ async function performDeleteCase(caseId, adminPassword) {
             }
             
             alert('ลบแฟ้มคดีเรียบร้อยแล้ว');
-            fetchCases(); // Re-fetch and re-render
-            closeModal(adminPasswordModal); // Close password modal
+            fetchCases(); 
+            closeModal(adminPasswordModal); 
         } catch (error) {
             console.error("Error deleting case:", error);
             alert(`เกิดข้อผิดพลาดในการลบข้อมูล: ${error.message} กรุณาลองใหม่`);
         }
     } else {
-        closeModal(adminPasswordModal); // Close password modal if user cancels confirm
+        closeModal(adminPasswordModal); 
     }
 }
 
@@ -341,10 +337,10 @@ async function openBorrowReturnModal(id, type) {
             confirmBorrowReturnBtn.textContent = 'ยืนยันการเบิก';
             borrowerNameInput.value = '';
             borrowerNameInput.placeholder = 'กรอกชื่อผู้เบิก';
-        } else { // type === 'return'
+        } else { 
             borrowReturnModalTitle.textContent = 'บันทึกการคืนแฟ้มคดี';
             confirmBorrowReturnBtn.textContent = 'ยืนยันการคืน';
-            borrowerNameInput.value = caseToHandle.borrowed_by_user_name || ''; // Pre-fill with last borrower name
+            borrowerNameInput.value = caseToHandle.borrowed_by_user_name || ''; 
             borrowerNameInput.placeholder = 'กรอกชื่อผู้คืน';
         }
         borrowReturnModal.classList.add('active');
@@ -365,7 +361,6 @@ async function handleBorrowReturn(event) {
         return;
     }
 
-    // Check status from DOM or from fetched data
     const currentStatusText = currentCaseStatusSpan.textContent;
     const action = (currentStatusText === "อยู่ในห้องสำนวน") ? "borrow" : "return";
 
@@ -388,7 +383,7 @@ async function handleBorrowReturn(event) {
         
         alert(action === 'borrow' ? 'บันทึกการเบิกแฟ้มคดีเรียบร้อยแล้ว' : 'บันทึกการคืนแฟ้มคดีเรียบร้อยแล้ว');
         
-        fetchCases(); // Re-fetch and re-render
+        fetchCases(); 
         closeModal(borrowReturnModal);
     } catch (error) {
         console.error("Error handling borrow/return:", error);
@@ -401,21 +396,18 @@ async function handleBorrowReturn(event) {
 async function performSearch() {
     const searchTerm = searchInput.value.trim().toLowerCase();
     
-    // Always fetch all data first to use for searching
-    const allCases = await fetchCases(); // fetchCases() will handle rendering too
+    const allCases = await fetchCases(); 
 
     if (!searchTerm) {
-        // If no search term, fetchCases() already loaded and rendered everything
         return;
     }
 
     if (!allCases || allCases.length === 0) {
-        renderCases([]); // Display empty table if no data
+        renderCases([]); 
         return;
     }
 
     const filtered = allCases.filter(c => {
-        // Ensure the field exists and is a string before using toLowerCase/includes
         const farmerNameMatch = (c.farmer_name && c.farmer_name.toLowerCase().includes(searchTerm));
         const farmerAccountNoMatch = (c.farmer_account_no && c.farmer_account_no.toLowerCase().includes(searchTerm));
         const cabinetMatch = (c.cabinet_no !== undefined && c.cabinet_no.toString().includes(searchTerm));
@@ -435,28 +427,23 @@ async function performSearch() {
                fullCabinetMatch || fullShelfMatch || fullSequenceMatch ||
                borrowerMatch || statusMatch;
     });
-    renderCases(filtered); // Display search results
+    renderCases(filtered); 
 }
 
 
 // --- Modal Close Functions ---
 function closeModal(modalElement) {
-    if (modalElement) { // Check if element exists
+    if (modalElement) { 
         modalElement.classList.remove('active');
-        // Clear password input when closing admin password modal
         if (modalElement === adminPasswordModal) {
             adminPasswordInput.value = '';
         }
     }
 }
 
-// NEW: Admin Password Modal Logic
-function openAdminPasswordModal(actionType, caseId, caseData = null) {
-    currentAdminAction = actionType;
-    currentAdminCaseId = caseId;
-    currentAdminCaseData = caseData; // Store case data for edit action
-
-    adminPasswordInput.value = ''; // Clear any previous password
+// Admin Password Modal Logic
+function openAdminPasswordModal() {
+    adminPasswordInput.value = ''; 
     adminPasswordModal.classList.add('active');
 }
 
@@ -469,94 +456,33 @@ async function submitAdminPassword(event) {
         return;
     }
 
-    if (currentAdminAction === 'edit') {
-        // Fill the main case form with the stored data before performing the update
-        modalTitle.textContent = 'แก้ไขข้อมูลแฟ้มคดี';
-        farmerNameInput.value = currentAdminCaseData.farmer_name || '';
-        farmerAccountNoInput.value = currentAdminCaseData.farmer_account_no || '';
-        cabinetNoInput.value = currentAdminCaseData.cabinet_no !== undefined ? currentAdminCaseData.cabinet_no : '';
-        shelfNoInput.value = currentAdminCaseData.shelf_no !== undefined ? currentAdminCaseData.shelf_no : '';
-        sequenceNoInput.value = currentAdminCaseData.sequence_no !== undefined ? currentAdminCaseData.sequence_no : '';
-        caseIdInput.value = currentAdminCaseData.id;
-        caseModal.classList.add('active'); // Show the main edit modal
+    // NEW: Verify password with backend first
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/verify-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ admin_password: adminPassword })
+        });
 
-        // The actual update will happen when the user submits the caseForm.
-        // We need to modify saveCase to handle this.
-        // For now, we'll just open the edit modal. The password check is done here.
-        // We will modify saveCase to include password if it's an edit.
-        // OR, better: The saveCase function should be split.
-        // Let's modify saveCase to call performUpdateCase if caseId is present.
-        
-        // No, the flow will be: openEditCaseModal -> openAdminPasswordModal -> submitAdminPassword -> performUpdateCase
-        // So, when adminPassword is correct, we call performUpdateCase directly.
-        // The saveCase function will only be for ADDING new cases.
-        // This simplifies the logic and makes it clearer.
-        
-        // So, if currentAdminAction is 'edit', we perform the update here.
-        // We need to get the *current* values from the main edit form inputs.
-        // This means the user has to re-enter values in the main edit modal AFTER password.
-        // This is not ideal UX.
-        // A better flow:
-        // 1. User clicks 'Edit'.
-        // 2. We fetch case data and store it.
-        // 3. We open the admin password modal.
-        // 4. If password is correct, we populate the main edit modal with the stored data and open it.
-        // 5. User edits data in the main edit modal and clicks 'Save'.
-        // 6. The saveCase function (which is now only for adding) needs to be modified to handle edits.
-        //    Or, we create a separate function for edits.
+        if (!response.ok) {
+            const errorData = await response.json();
+            alert(`รหัสผ่านไม่ถูกต้อง: ${errorData.message || response.statusText}`);
+            adminPasswordInput.value = ''; // Clear password field
+            return;
+        }
 
-        // Let's stick to the simpler approach:
-        // openEditCaseModal fetches data -> openAdminPasswordModal ('edit', id, caseToEdit)
-        // submitAdminPassword -> if 'edit', then populate caseModal and show it.
-        // The actual saving will happen when the user submits caseForm.
-        // We need to ensure that the saveCase function itself also sends the admin_password
-        // for PUT requests. This is a security risk if not handled carefully.
-
-        // Re-thinking the flow for edit:
-        // 1. Click Edit -> openEditCaseModal(id)
-        // 2. Fetch case data.
-        // 3. Open adminPasswordModal('edit', id, fetchedCaseData)
-        // 4. User enters password in adminPasswordModal.
-        // 5. submitAdminPassword is called.
-        // 6. If password is correct:
-        //    a. Close adminPasswordModal.
-        //    b. Populate the main caseModal with fetchedCaseData.
-        //    c. Open caseModal.
-        // 7. User modifies data in caseModal and clicks save.
-        // 8. saveCase function is called. It checks caseId. If caseId exists, it's an edit.
-        //    It *must* then prompt for password again, or somehow use a stored "session" password.
-        //    This is getting complicated for a simple JSON file backend.
-
-        // Let's simplify the edit flow to be similar to delete:
-        // User clicks edit -> prompt for password -> if correct, immediately send PUT request with current form data.
-        // This means the edit modal needs to be populated *before* the password modal,
-        // and its data needs to be captured *before* the password modal.
-
-        // Revised simpler flow for EDIT:
-        // 1. User clicks 'Edit'.
-        // 2. `openEditCaseModal(id)` fetches the case data.
-        // 3. It populates the `caseModal` with the fetched data and displays it.
-        // 4. When the user clicks 'Save' in `caseModal`, `saveCase` is called.
-        // 5. Inside `saveCase`, if it's an edit (`caseId` exists), it will then call `openAdminPasswordModal('edit_save', caseId, caseData)`
-        //    where `caseData` is the *new* data from the form.
-        // 6. `submitAdminPassword` then calls `performUpdateCase` with the `caseData` and `adminPassword`.
-
-        // This makes `saveCase` responsible for triggering the password modal for edits.
-        // This is a more common pattern.
-
-        // So, `openEditCaseModal` will just open the main edit form.
-        // `saveCase` will handle the password for edits.
-
-        // Reset password input
-        adminPasswordInput.value = '';
-
+        // Password is correct, proceed with the action
         if (currentAdminAction === 'edit_save') {
-            // This is triggered from saveCase for an edit.
-            // currentAdminCaseId holds the ID, currentAdminCaseData holds the updated form data.
             performUpdateCase(currentAdminCaseId, currentAdminCaseData, adminPassword);
         } else if (currentAdminAction === 'delete') {
             performDeleteCase(currentAdminCaseId, adminPassword);
         }
+        // No need to close adminPasswordModal here, it will be closed by performUpdateCase/performDeleteCase on success
+        // or remain open if there's a subsequent error in the action itself.
+
+    } catch (error) {
+        console.error("Error verifying admin password:", error);
+        alert(`เกิดข้อผิดพลาดในการตรวจสอบรหัสผ่าน: ${error.message} กรุณาลองใหม่`);
     }
 }
 
@@ -564,14 +490,8 @@ async function submitAdminPassword(event) {
 // --- Event Listeners ---
 
 document.addEventListener('DOMContentLoaded', () => {
-    // ***IMPORTANT***: Ensure all DOM Elements called (e.g., addCaseBtn, caseModal)
-    // are not null before attaching Event Listeners.
-    // If an element does not exist, a TypeError will occur and the code will stop.
-
-    // Initial fetch of cases when the page loads
     fetchCases(); 
 
-    // Event listener for all close buttons and cancel buttons
     document.querySelectorAll('.close-button, .cancel-button').forEach(button => {
         button.addEventListener('click', (e) => {
             let modal = e.target.closest('.modal');
@@ -581,7 +501,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Close modal when clicking outside of modal content
     window.addEventListener('click', (event) => {
         if (event.target === caseModal) {
             closeModal(caseModal);
@@ -589,14 +508,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.target === borrowReturnModal) {
             closeModal(borrowReturnModal);
         }
-        if (event.target === adminPasswordModal) { // NEW: Close admin password modal
+        if (event.target === adminPasswordModal) { 
             closeModal(adminPasswordModal);
         }
     });
 
-    // Check if buttons exist before attaching Event Listeners
     if (addCaseBtn) addCaseBtn.addEventListener('click', openAddCaseModal);
-    // Modified saveCase to handle password check for edits
     if (caseForm) caseForm.addEventListener('submit', saveCase); 
     if (borrowReturnForm) borrowReturnForm.addEventListener('submit', handleBorrowReturn);
     if (searchBtn) searchBtn.addEventListener('click', performSearch);
@@ -610,10 +527,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (clearSearchBtn) {
         clearSearchBtn.addEventListener('click', () => {
             searchInput.value = '';
-            fetchCases(); // Clear search and show all cases
+            fetchCases(); 
         });
     }
 
-    // NEW: Event listener for admin password form submission
     if (adminPasswordForm) adminPasswordForm.addEventListener('submit', submitAdminPassword);
 });

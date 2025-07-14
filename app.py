@@ -5,27 +5,21 @@ import os
 import datetime
 import uuid
 import logging
-from functools import wraps # Import wraps for decorator
+from functools import wraps 
 
 # --- Flask App Initialization ---
-# Set static_folder to 'static' (recommended)
-# This means static files (index.html, css, js) will be in the 'static' folder
 app = Flask(__name__, static_folder='static', static_url_path='')
 
 # --- Configure CORS ---
-# Explicitly specify allowed Origins for security
-# You should replace 'https://sugar-vzh6.onrender.com' with your actual Frontend domain on Render
-# And add localhost for local development
 origins = [
     "https://sugar-vzh6.onrender.com",
-    "http://localhost:3000",  # Example: If Frontend dev server runs here
+    "http://localhost:3000",  
     "http://127.0.0.1:3000",
-    "http://127.0.0.1:5500",  # Example: If using Live Server in VS Code
+    "http://127.0.0.1:5500",  
     "http://localhost:5500",
-    # Add other Frontend domains you might have
 ]
 
-CORS(app, origins=origins, supports_credentials=True) # supports_credentials=True if Frontend sends cookies/auth headers
+CORS(app, origins=origins, supports_credentials=True) 
 
 # --- Configure logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -34,7 +28,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 DATA_FILE = 'cases_data.json'
 
 # --- Timezone Configuration ---
-# Define the offset for Thailand Standard Time (UTC+7)
 THAILAND_TIMEZONE_OFFSET_HOURS = 7
 
 def get_thai_current_time_iso():
@@ -46,11 +39,12 @@ def get_thai_current_time_iso():
     return thai_time.isoformat()
 
 # --- Admin Password Configuration ---
-ADMIN_PASSWORD = "lawsugar6" # Define the admin password
+ADMIN_PASSWORD = "lawsugar6" 
 
 def admin_password_required(f):
     """
     Decorator to check for a valid admin password in the request JSON.
+    This decorator is used for PUT and DELETE operations on cases.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -63,17 +57,16 @@ def admin_password_required(f):
 
         if not provided_password:
             logging.warning("Admin password check: Password not provided.")
-            return jsonify({"message": "Admin password required"}), 401 # Unauthorized
+            return jsonify({"message": "Admin password required"}), 401 
         
         if provided_password != ADMIN_PASSWORD:
             logging.warning("Admin password check: Incorrect password.")
-            return jsonify({"message": "Incorrect admin password"}), 403 # Forbidden
+            return jsonify({"message": "Incorrect admin password"}), 403 
         
         # Remove the password from the request data before passing to the function
-        # to avoid it being saved or processed further unnecessarily.
         if 'admin_password' in data:
             del data['admin_password']
-            request.json = data # Update request.json after removal
+            request.json = data 
 
         return f(*args, **kwargs)
     return decorated_function
@@ -86,7 +79,7 @@ def load_cases_data():
     """
     if not os.path.exists(DATA_FILE) or os.stat(DATA_FILE).st_size == 0:
         logging.info(f"'{DATA_FILE}' not found or is empty. Initializing with an empty list.")
-        return [] # Return empty list, no dummy data generation
+        return [] 
     
     try:
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
@@ -95,10 +88,10 @@ def load_cases_data():
             return data
     except json.JSONDecodeError as e:
         logging.error(f"JSONDecodeError while loading '{DATA_FILE}': {e}. File might be corrupted. Initializing with an empty list.")
-        return [] # Return empty list if corrupted
+        return [] 
     except IOError as e:
         logging.error(f"IOError while loading '{DATA_FILE}': {e}. Initializing with an empty list.")
-        return [] # Return empty list if IOError
+        return [] 
 
 def save_cases_data(cases):
     """
@@ -110,12 +103,9 @@ def save_cases_data(cases):
         logging.info(f"Successfully saved data to '{DATA_FILE}'. Number of cases: {len(cases)}")
     except IOError as e:
         logging.error(f"IOError while saving data to '{DATA_FILE}': {e}")
-        # In a real app, you might want to notify an administrator or use a fallback.
     except Exception as e:
         logging.error(f"An unexpected error occurred while saving data to '{DATA_FILE}': {e}")
 
-# This function is no longer called for initial data generation,
-# but kept here in case it's needed for other purposes later.
 def generate_initial_dummy_data():
     """
     Generates a list of dummy case data.
@@ -140,12 +130,12 @@ def generate_initial_dummy_data():
         if status == "Borrowed":
             borrower = user_names[i % len(user_names)]
             borrowed_by_user_name = borrower
-            borrowed_date = get_thai_current_time_iso() # Use Thai time for dummy data
+            borrowed_date = get_thai_current_time_iso() 
         if status == "In Room" and (i % 10 < 3):
             borrower = user_names[(i+1) % len(user_names)]
             borrowed_by_user_name = borrower
-            borrowed_date = get_thai_current_time_iso() # Use Thai time for dummy data
-            returned_date = get_thai_current_time_iso() # Use Thai time for dummy data
+            borrowed_date = get_thai_current_time_iso() 
+            returned_date = get_thai_current_time_iso() 
 
         dummy_data.append({
             "id": str(uuid.uuid4()),
@@ -159,7 +149,7 @@ def generate_initial_dummy_data():
             "borrowed_date": borrowed_date,
             "returned_date": returned_date,
             "last_updated_by_user_name": user_names[i % len(user_names)],
-            "last_updated_timestamp": get_thai_current_time_iso() # Use Thai time for dummy data
+            "last_updated_timestamp": get_thai_current_time_iso() 
         })
     logging.info(f"Generated {len(dummy_data)} dummy cases.")
     return dummy_data
@@ -168,7 +158,6 @@ def generate_initial_dummy_data():
 cases_data = load_cases_data()
 
 # --- ROUTES for Static Files ---
-# / will serve index.html from the static folder
 @app.route('/')
 def serve_index():
     try:
@@ -177,7 +166,6 @@ def serve_index():
         logging.error(f"Error serving index.html: {e}")
         return "Error serving index.html", 500
 
-# /style.css will serve style.css from the static folder
 @app.route('/style.css')
 def serve_css():
     try:
@@ -186,7 +174,6 @@ def serve_css():
         logging.error(f"Error serving style.css: {e}")
         return "Error serving style.css", 500
 
-# /script.js will serve script.js from the static folder
 @app.route('/script.js')
 def serve_js():
     try:
@@ -196,6 +183,20 @@ def serve_js():
         return "Error serving script.js", 500
 
 # --- API Endpoints ---
+
+# NEW: Endpoint to verify admin password
+@app.route('/api/admin/verify-password', methods=['POST'])
+def verify_admin_password():
+    if not request.is_json:
+        return jsonify({"message": "Request must be JSON"}), 400
+    
+    data = request.json
+    provided_password = data.get('admin_password')
+
+    if provided_password == ADMIN_PASSWORD:
+        return jsonify({"message": "Password correct"}), 200
+    else:
+        return jsonify({"message": "Incorrect password"}), 403 
 
 # 1. GET /api/cases - Retrieve all cases
 @app.route('/api/cases', methods=['GET'])
@@ -228,42 +229,41 @@ def add_case():
             return jsonify({"message": "Missing required fields"}), 400
 
         new_case = {
-            "id": str(uuid.uuid4()), # Generate a unique ID
+            "id": str(uuid.uuid4()), 
             "farmer_name": data["farmer_name"],
             "farmer_account_no": data["farmer_account_no"],
             "cabinet_no": int(data["cabinet_no"]),
             "shelf_no": int(data["shelf_no"]),
             "sequence_no": int(data["sequence_no"]),
-            "status": "In Room", # New case status is initially "In Room"
+            "status": "In Room", 
             "borrowed_by_user_name": None,
             "borrowed_date": None,
             "returned_date": None,
-            "last_updated_by_user_name": "System", # Or specify the user who added it
-            "last_updated_timestamp": get_thai_current_time_iso() # Use Thai time
+            "last_updated_by_user_name": "System", 
+            "last_updated_timestamp": get_thai_current_time_iso() 
         }
         cases_data.append(new_case)
         save_cases_data(cases_data)
         logging.info(f"New case added successfully: {new_case['id']}")
-        return jsonify(new_case), 201 # 201 Created
+        return jsonify(new_case), 201 
     except ValueError as e:
         logging.error(f"ValueError when adding case (e.g., cabinet_no not int): {e}")
         return jsonify({"message": "Invalid input for numeric fields"}), 400
     except Exception as e:
         logging.error(f"Error adding new case: {e}")
-        return jsonify({"message": "An error occurred while saving data. Please try again."}), 500 # Custom error message
+        return jsonify({"message": "An error occurred while saving data. Please try again."}), 500 
 
 # 4. PUT /api/cases/<id> - Update case data (requires admin password)
 @app.route('/api/cases/<id>', methods=['PUT'])
-@admin_password_required # Apply the decorator here
+@admin_password_required 
 def update_case(id):
     try:
-        data = request.json # Data will already have 'admin_password' removed by the decorator
+        data = request.json 
         case = next((c for c in cases_data if c['id'] == id), None)
         if not case:
             logging.warning(f"Case with ID {id} not found for update.")
             return jsonify({"message": "Case not found"}), 404
 
-        # Update only the fields received
         if 'farmer_name' in data: case['farmer_name'] = data['farmer_name']
         if 'farmer_account_no' in data: case['farmer_account_no'] = data['farmer_account_no']
         if 'cabinet_no' in data: case['cabinet_no'] = int(data['cabinet_no'])
@@ -271,7 +271,7 @@ def update_case(id):
         if 'sequence_no' in data: case['sequence_no'] = int(data['sequence_no'])
 
         case["last_updated_by_user_name"] = "System"
-        case["last_updated_timestamp"] = get_thai_current_time_iso() # Use Thai time
+        case["last_updated_timestamp"] = get_thai_current_time_iso() 
 
         save_cases_data(cases_data)
         logging.info(f"Case with ID {id} updated successfully.")
@@ -293,18 +293,18 @@ def update_case_status(id):
             logging.warning(f"Case with ID {id} not found for status update.")
             return jsonify({"message": "Case not found"}), 404
 
-        action = data.get('action') # 'borrow' or 'return'
+        action = data.get('action') 
         borrower_name = data.get('borrower_name')
 
         if not action or not borrower_name:
              logging.warning("Missing action or borrower_name for status update.")
              return jsonify({"message": "Missing action or borrower_name"}), 400
 
-        current_timestamp = get_thai_current_time_iso() # Use Thai time
+        current_timestamp = get_thai_current_time_iso() 
 
         if action == 'borrow':
             if case['status'] == 'Borrowed':
-                return jsonify({"message": "Case is already borrowed"}), 409 # Conflict
+                return jsonify({"message": "Case is already borrowed"}), 409 
             case['status'] = 'Borrowed'
             case['borrowed_by_user_name'] = borrower_name
             case['borrowed_date'] = current_timestamp
@@ -331,7 +331,7 @@ def update_case_status(id):
 
 # 6. DELETE /api/cases/<id> - Delete a case (requires admin password)
 @app.route('/api/cases/<id>', methods=['DELETE'])
-@admin_password_required # Apply the decorator here
+@admin_password_required 
 def delete_case(id):
     global cases_data
     try:
@@ -349,7 +349,5 @@ def delete_case(id):
 
 # --- Main entry point for Flask (for local development and Render) ---
 if __name__ == '__main__':
-    # For running on Render, Render will assign the PORT.
-    # For local development, port 5000 is used by default.
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=True) # host='0.0.0.0' to accept connections from external sources
+    app.run(host='0.0.0.0', port=port, debug=True) 
