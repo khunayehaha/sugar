@@ -1,24 +1,23 @@
-# app.py
-
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory # เพิ่ม send_from_directory
 from flask_cors import CORS
 import json
 import os
 import datetime
-import uuid # สำหรับสร้าง ID ที่ไม่ซ้ำกัน
+import uuid
 
-app = Flask(__name__)
+# --- Flask App Initialization ---
+# สำคัญ: กำหนด static_folder เป็น '.' (current directory)
+# เพื่อให้ Flask สามารถหาไฟล์ index.html, style.css, script.js ได้ในโฟลเดอร์เดียวกัน
+# และ static_url_path='' เพื่อให้ไฟล์เหล่านี้เข้าถึงได้โดยตรงที่ root path เช่น /index.html
+app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app) # เปิดใช้งาน CORS สำหรับทุกโดเมน (สำหรับการพัฒนา)
 
-# --- กำหนดชื่อไฟล์ฐานข้อมูล (SQLite) ---
-# จะเก็บข้อมูลแฟ้มคดีในไฟล์ JSON ที่จำลองเป็นฐานข้อมูล SQLite
-# ในอนาคตจะเปลี่ยนไปใช้ฐานข้อมูล SQL จริงๆ เช่น SQLAlchemy
+# --- กำหนดชื่อไฟล์ฐานข้อมูล (JSON file simulation) ---
 DATA_FILE = 'cases_data.json'
 
 # --- ฟังก์ชันช่วยเหลือสำหรับการจัดการข้อมูล ---
 def load_cases_data():
     if not os.path.exists(DATA_FILE) or os.stat(DATA_FILE).st_size == 0:
-        # ถ้าไฟล์ไม่มีหรือว่างเปล่า ให้สร้างข้อมูล dummy
         cases = generate_initial_dummy_data()
         save_cases_data(cases)
         return cases
@@ -26,7 +25,6 @@ def load_cases_data():
         try:
             return json.load(f)
         except json.JSONDecodeError:
-            # ถ้าไฟล์เสีย ให้เริ่มใหม่ด้วยข้อมูล dummy
             cases = generate_initial_dummy_data()
             save_cases_data(cases)
             return cases
@@ -47,17 +45,16 @@ def generate_initial_dummy_data():
     user_names = ["เจนนิเฟอร์", "โรเบิร์ต", "สุชาดา", "วิชัย", "เมษายน", "ธนากร"]
 
     for i in range(300):
-        status = statuses[i % len(statuses)] # สลับสถานะ In Room / Borrowed
+        status = statuses[i % len(statuses)]
         borrowed_by_user_name = None
         borrowed_date = None
         returned_date = None
 
         if status == "Borrowed":
-            borrower = user_names[i % len(user_names)] # สลับผู้ยืม
+            borrower = user_names[i % len(user_names)]
             borrowed_by_user_name = borrower
             borrowed_date = datetime.datetime.now().isoformat()
 
-        # 30% ของคดีที่อยู่ในห้อง (In Room) เคยถูกยืมแล้วคืน
         if status == "In Room" and (i % 10 < 3):
             borrower = user_names[(i+1) % len(user_names)]
             borrowed_by_user_name = borrower
@@ -65,7 +62,7 @@ def generate_initial_dummy_data():
             returned_date = datetime.datetime.now().isoformat()
 
         dummy_data.append({
-            "id": str(uuid.uuid4()), # ใช้ UUID เพื่อสร้าง ID ที่ไม่ซ้ำกัน
+            "id": str(uuid.uuid4()),
             "farmer_name": f"{names[i % len(names)]} คดีที่ {i + 1}",
             "farmer_account_no": f"{account_prefixes[i % len(account_prefixes)]}-{str(10000 + i).zfill(5)}",
             "cabinet_no": (i % cabinet_count) + 1,
@@ -83,7 +80,26 @@ def generate_initial_dummy_data():
 # โหลดข้อมูลเมื่อแอปเริ่มทำงาน
 cases_data = load_cases_data()
 
+# --- ROUTES สำหรับ Static Files ---
+# สำคัญ: นี่คือส่วนที่ทำให้ Render หาหน้า Frontend เจอ
+@app.route('/')
+def serve_index():
+    # จะหาไฟล์ index.html ใน static_folder (คือ . หรือ root directory)
+    return send_from_directory(app.static_folder, 'index.html')
+
+# หากต้องการให้แน่ใจว่า CSS และ JS ถูกเสิร์ฟอย่างถูกต้อง (แม้ว่า static_url_path='' ควรจะครอบคลุมแล้ว)
+# คุณสามารถเพิ่ม route เฉพาะได้ แต่ปกติไม่จำเป็น
+@app.route('/style.css')
+def serve_css():
+    return send_from_directory(app.static_folder, 'style.css')
+
+@app.route('/script.js')
+def serve_js():
+    return send_from_directory(app.static_folder, 'script.js')
+
+
 # --- API Endpoints ---
+# (ส่วนนี้เหมือนเดิมจากโค้ดที่คุณให้มา)
 
 # 1. GET /api/cases - ดึงข้อมูลคดีทั้งหมด
 @app.route('/api/cases', methods=['GET'])
@@ -138,9 +154,7 @@ def update_case(id):
     if 'shelf_no' in data: case['shelf_no'] = int(data['shelf_no'])
     if 'sequence_no' in data: case['sequence_no'] = int(data['sequence_no'])
 
-    # สำหรับสถานะการยืม/คืน จะจัดการใน endpoint แยกเพื่อความชัดเจน
-
-    case["last_updated_by_user_name"] = "System" # หรือจะระบุชื่อผู้ใช้ที่แก้ไข
+    case["last_updated_by_user_name"] = "System"
     case["last_updated_timestamp"] = datetime.datetime.now().isoformat()
 
     save_cases_data(cases_data)
@@ -173,12 +187,11 @@ def update_case_status(id):
         if case['status'] == 'In Room':
             return jsonify({"message": "Case is already in room"}), 409
         case['status'] = 'In Room'
-        # ยังคงเก็บชื่อผู้เบิกเดิมไว้เพื่อประวัติ แต่บันทึกวันที่คืน
         case['returned_date'] = current_timestamp
     else:
         return jsonify({"message": "Invalid action"}), 400
 
-    case["last_updated_by_user_name"] = borrower_name # ผู้ที่ทำรายการยืม/คืน
+    case["last_updated_by_user_name"] = borrower_name
     case["last_updated_timestamp"] = current_timestamp
 
     save_cases_data(cases_data)
@@ -187,7 +200,7 @@ def update_case_status(id):
 # 6. DELETE /api/cases/<id> - ลบคดี
 @app.route('/api/cases/<id>', methods=['DELETE'])
 def delete_case(id):
-    global cases_data # ต้องระบุ global เพราะเราจะเปลี่ยน list cases_data ทั้งหมด
+    global cases_data
     initial_len = len(cases_data)
     cases_data = [c for c in cases_data if c['id'] != id]
     if len(cases_data) < initial_len:
@@ -195,4 +208,8 @@ def delete_case(id):
         return jsonify({"message": "Case deleted successfully"}), 200
     return jsonify({"message": "Case not found"}), 404
 
-
+# --- Main entry point for Flask (for local development) ---
+if __name__ == '__main__':
+    # รันบนพอร์ต 5000 สำหรับการทดสอบในเครื่องของคุณ
+    # เมื่อ Deploy บน Render Render จะจัดการเรื่องพอร์ตให้เอง
+    app.run(debug=True, port=int(os.environ.get("PORT", 5000)))
