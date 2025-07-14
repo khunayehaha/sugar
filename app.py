@@ -7,7 +7,7 @@ import pytz # <-- เพิ่ม import pytz
 import threading # <-- เพิ่ม import threading
 
 # --- Flask App Initialization ---
-app = Flask(__name__, static_folder='static', static_url_path='')
+app = (__name__, static_folder='static', static_url_path='')
 
 # --- Configure CORS ---
 # ระบุ Origins ที่อนุญาตอย่างชัดเจนเพื่อความปลอดภัย
