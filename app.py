@@ -11,12 +11,15 @@ from functools import wraps
 app = Flask(__name__, static_folder='static', static_url_path='')
 
 # --- Configure CORS ---
+# ให้ CORS อนุญาตทุก Origin ชั่วคราวเพื่อทดสอบปัญหา
+# ใน Production ควรระบุ Origins ที่อนุญาตอย่างชัดเจนเพื่อความปลอดภัย
 origins = [
     "https://sugar-vzh6.onrender.com",
     "http://localhost:3000",  
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5500",  
     "http://localhost:5500",
+    "*" # เพิ่ม wildcard เพื่ออนุญาตทุกโดเมนชั่วคราวสำหรับการดีบัก CORS
 ]
 
 CORS(app, origins=origins, supports_credentials=True) 
@@ -193,9 +196,20 @@ def serve_js():
 @app.route('/api/admin/verify-password', methods=['POST'])
 def verify_admin_password():
     if not request.is_json:
+        # If request is not JSON, try to read as text for debugging
+        try:
+            raw_data = request.get_data(as_text=True)
+            logging.error(f"Received non-JSON request to /api/admin/verify-password. Raw data: {raw_data}")
+        except Exception as e:
+            logging.error(f"Could not read raw data from non-JSON request: {e}")
         return jsonify({"message": "Request must be JSON"}), 400
     
-    data = request.json
+    try:
+        data = request.json
+    except Exception as e:
+        logging.error(f"Error parsing JSON from request to /api/admin/verify-password: {e}")
+        return jsonify({"message": f"Invalid JSON format in request body: {e}"}), 400
+
     provided_password = data.get('admin_password')
 
     if provided_password == ADMIN_PASSWORD:
