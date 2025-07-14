@@ -43,7 +43,7 @@ const USER_IDS = [
     { id: "user6", name: "ธนากร" }
 ];
 // กำหนด URL ของ Backend API
-const API_BASE_URL = 'http://127.0.0.1:5000/api/cases'; // Backend ของเราอยู่ที่นี่
+const API_BASE_URL = 'https://sugar-vzh6.onrender.com/api/cases'; // Backend ของเราอยู่ที่นี่
 
 // --- Utility Functions (ปรับปรุงเล็กน้อย) ---
 
