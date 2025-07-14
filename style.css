@@ -1,0 +1,350 @@
+/* style.css */
+
+:root {
+    --primary-color: #A084E8; /* Muted Purple */
+    --primary-dark: #816BCB;
+    --secondary-color: #DCD6F7; /* Lighter Purple */
+    --background-light: #F8F8F8; /* Off-white */
+    --text-dark: #333;
+    --text-light: #666;
+    --border-color: #E0E0E0;
+    --success-color: #6CB16F; /* Green for In Room */
+    --borrowed-color: #E6B04D; /* Orange for Borrowed */
+    --box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+body {
+    font-family: 'Sarabun', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-light);
+    color: var(--text-dark);
+    line-height: 1.6;
+}
+
+header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    box-shadow: var(--box-shadow);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2.2em;
+}
+
+header p {
+    margin-top: 5px;
+    font-size: 1.1em;
+    opacity: 0.9;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: var(--box-shadow);
+}
+
+.top-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    gap: 15px; /* Spacing between items */
+}
+
+.top-controls #addCaseBtn {
+    flex-shrink: 0; /* Don't shrink the add button */
+    padding: 12px 25px;
+    font-size: 1.1em;
+}
+
+.search-bar {
+    display: flex;
+    gap: 10px;
+    flex-grow: 1; /* Allow search bar to take available space */
+    max-width: 600px; /* Limit search bar width */
+}
+
+.search-bar input[type="text"] {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+/* Buttons */
+.primary-button, .secondary-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.primary-button {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.primary-button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.secondary-button {
+    background-color: var(--secondary-color);
+    color: var(--text-dark);
+    border: 1px solid var(--primary-color);
+}
+
+.secondary-button:hover {
+    background-color: var(--primary-color);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.cancel-button {
+    background-color: #f4f4f4;
+    color: var(--text-dark);
+    border: 1px solid #ccc;
+}
+
+.cancel-button:hover {
+    background-color: #e0e0e0;
+}
+
+/* Table Styles */
+.table-container {
+    overflow-x: auto; /* Enable horizontal scrolling for small screens */
+    box-shadow: var(--box-shadow);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+#caseTable {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 700px; /* Ensure table doesn't get too narrow */
+}
+
+#caseTable thead th {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+}
+
+#caseTable tbody tr {
+    border-bottom: 1px solid var(--border-color);
+}
+
+#caseTable tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+#caseTable tbody tr:hover {
+    background-color: #f0f0f0;
+}
+
+#caseTable tbody td {
+    padding: 10px 15px;
+    vertical-align: middle;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-weight: 600;
+    white-space: nowrap; /* Prevent text wrapping */
+}
+
+.status-badge.in-room {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.status-badge.borrowed {
+    background-color: var(--borrowed-color);
+    color: white;
+}
+
+/* Action Buttons in Table */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.action-buttons button {
+    padding: 6px 12px;
+    font-size: 0.85em;
+    border-radius: 4px;
+}
+
+.action-buttons .edit-btn {
+    background-color: #5cb85c; /* Green */
+    color: white;
+}
+.action-buttons .edit-btn:hover {
+    background-color: #4cae4c;
+}
+
+.action-buttons .borrow-btn {
+    background-color: #f0ad4e; /* Orange */
+    color: white;
+}
+.action-buttons .borrow-btn:hover {
+    background-color: #ec971f;
+}
+
+.action-buttons .return-btn {
+    background-color: #5bc0de; /* Light Blue */
+    color: white;
+}
+.action-buttons .return-btn:hover {
+    background-color: #31b0d5;
+}
+
+.action-buttons .delete-btn {
+    background-color: #d9534f; /* Red */
+    color: white;
+}
+.action-buttons .delete-btn:hover {
+    background-color: #c9302c;
+}
+
+.no-results-message {
+    text-align: center;
+    color: var(--text-light);
+    padding: 20px;
+    font-size: 1.1em;
+}
+
+/* Modals (Pop-ups) */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+}
+
+.modal.active {
+    display: flex; /* Show when active */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto; /* Center the modal vertically and horizontally */
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 90%;
+    max-width: 500px; /* Max width for modal */
+    position: relative;
+    box-sizing: border-box; /* Include padding in width */
+}
+
+.close-button {
+    color: #aaa;
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #333;
+    text-decoration: none;
+}
+
+.modal h2 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 1.8em;
+}
+
+.modal form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.modal form input[type="text"],
+.modal form input[type="number"] {
+    width: calc(100% - 22px); /* Full width minus padding and border */
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.modal p strong {
+    color: var(--primary-dark);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .top-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .search-bar {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        max-width: none;
+    }
+    .search-bar input, .search-bar button {
+        width: 100%;
+    }
+    .top-controls #addCaseBtn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 600px) {
+    header h1 {
+        font-size: 1.8em;
+    }
+    .container {
+        padding: 15px;
+        margin: 10px auto;
+    }
+    .modal-content {
+        padding: 20px;
+    }
+}

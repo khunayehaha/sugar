@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการแฟ้มคดี</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <h1>ระบบจัดการแฟ้มคดี</h1>
+        <p>สำหรับทีมงาน</p>
+    </header>
+
+    <main class="container">
+        <div class="top-controls">
+            <button id="addCaseBtn" class="primary-button">
+                + เพิ่มแฟ้มคดีใหม่
+            </button>
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="ค้นหาชื่อ, เลขบัญชี, ตู้, ชั้น, ลำดับ...">
+                <button id="searchBtn" class="secondary-button">ค้นหา</button>
+                <button id="clearSearchBtn" class="secondary-button">ล้างการค้นหา</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="caseTable">
+                <thead>
+                    <tr>
+                        <th>ชื่อ</th>
+                        <th>หมายเลขบัญชีชาวไร่</th>
+                        <th>ตู้</th>
+                        <th>ชั้น</th>
+                        <th>ลำดับ</th>
+                        <th>สถานะ</th>
+                        <th>ผู้เบิก/ผู้คืน</th>
+                        <th>วันที่</th>
+                        <th>ดำเนินการ</th>
+                    </tr>
+                </thead>
+                <tbody id="caseList">
+                    </tbody>
+            </table>
+            <p id="noResults" class="no-results-message" style="display: none;">ไม่พบข้อมูลแฟ้มคดี</p>
+        </div>
+
+        <div id="caseModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2 id="modalTitle">เพิ่มแฟ้มคดีใหม่</h2>
+                <form id="caseForm">
+                    <label for="farmerName">ชื่อ:</label>
+                    <input type="text" id="farmerName" required>
+
+                    <label for="farmerAccountNo">หมายเลขบัญชีชาวไร่:</label>
+                    <input type="text" id="farmerAccountNo" required>
+
+                    <label for="cabinetNo">ตู้ที่:</label>
+                    <input type="number" id="cabinetNo" min="1" required>
+
+                    <label for="shelfNo">ชั้นที่:</label>
+                    <input type="number" id="shelfNo" min="1" required>
+
+                    <label for="sequenceNo">ลำดับที่:</label>
+                    <input type="number" id="sequenceNo" min="1" required>
+                    
+                    <input type="hidden" id="caseId"> 
+
+                    <div class="modal-buttons">
+                        <button type="submit" class="primary-button">บันทึก</button>
+                        <button type="button" class="secondary-button cancel-button">ยกเลิก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="borrowReturnModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2 id="borrowReturnModalTitle"></h2>
+                <form id="borrowReturnForm">
+                    <p>ชื่อ: <strong id="currentFarmerName"></strong></p>
+                    <p>หมายเลขบัญชี: <strong id="currentFarmerAccountNo"></strong></p>
+                    <p>สถานะปัจจุบัน: <strong id="currentCaseStatus"></strong></p>
+                    
+                    <label for="borrowerName">ชื่อผู้เบิก/ผู้คืน (User ของคุณ):</label>
+                    <input type="text" id="borrowerName" required>
+                    
+                    <input type="hidden" id="borrowReturnCaseId">
+
+                    <div class="modal-buttons">
+                        <button type="submit" id="confirmBorrowReturnBtn" class="primary-button">ยืนยัน</button>
+                        <button type="button" class="secondary-button cancel-button">ยกเลิก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
