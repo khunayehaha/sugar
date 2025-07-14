@@ -4,13 +4,29 @@ import json
 import os
 import datetime
 import uuid
-import logging # เพิ่มการ logging เพื่อช่วยในการ debug
+import logging
 
 # --- Flask App Initialization ---
-app = Flask(__name__, static_folder='.', static_url_path='')
-CORS(app)
+# กำหนด static_folder เป็น 'static' (แนะนำ)
+# หมายความว่าไฟล์ static (index.html, css, js) จะอยู่ในโฟลเดอร์ชื่อ 'static'
+app = Flask(__name__, static_folder='static', static_url_path='') # แก้ไขตรงนี้
 
-# --- Configure logging (optional but good practice) ---
+# --- Configure CORS ---
+# ระบุ Origins ที่อนุญาตอย่างชัดเจนเพื่อความปลอดภัย
+# คุณต้องแทนที่ 'https://sugar-vzh6.onrender.com' ด้วยโดเมนจริงของ Frontend บน Render ของคุณ
+# และเพิ่ม localhost สำหรับการพัฒนาในเครื่อง
+origins = [
+    "https://sugar-vzh6.onrender.com",
+    "http://localhost:3000",  # ตัวอย่าง: ถ้า Frontend dev server รันที่นี่
+    "http://127.0.0.1:3000",
+    "http://localhost:5500",  # ตัวอย่าง: ถ้าใช้ Live Server ใน VS Code
+    "http://127.0.0.1:5500",
+    # เพิ่มโดเมนอื่นๆ ของ Frontend ที่คุณอาจมี
+]
+
+CORS(app, origins=origins, supports_credentials=True) # supports_credentials=True หาก Frontend ส่ง cookies/auth headers
+
+# --- Configure logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # --- กำหนดชื่อไฟล์ฐานข้อมูล (JSON file simulation) ---
@@ -113,6 +129,7 @@ def generate_initial_dummy_data():
 cases_data = load_cases_data()
 
 # --- ROUTES สำหรับ Static Files ---
+# / จะส่ง index.html จากโฟลเดอร์ static
 @app.route('/')
 def serve_index():
     try:
@@ -121,6 +138,7 @@ def serve_index():
         logging.error(f"Error serving index.html: {e}")
         return "Error serving index.html", 500
 
+# /style.css จะส่ง style.css จากโฟลเดอร์ static
 @app.route('/style.css')
 def serve_css():
     try:
@@ -129,6 +147,7 @@ def serve_css():
         logging.error(f"Error serving style.css: {e}")
         return "Error serving style.css", 500
 
+# /script.js จะส่ง script.js จากโฟลเดอร์ static
 @app.route('/script.js')
 def serve_js():
     try:
@@ -185,6 +204,7 @@ def add_case():
         }
         cases_data.append(new_case)
         save_cases_data(cases_data)
+        logging.info(f"New case added successfully: {new_case['id']}")
         return jsonify(new_case), 201 # 201 Created
     except ValueError as e:
         logging.error(f"ValueError when adding case (e.g., cabinet_no not int): {e}")
@@ -214,6 +234,7 @@ def update_case(id):
         case["last_updated_timestamp"] = datetime.datetime.now().isoformat()
 
         save_cases_data(cases_data)
+        logging.info(f"Case with ID {id} updated successfully.")
         return jsonify(case)
     except ValueError as e:
         logging.error(f"ValueError when updating case {id}: {e}")
@@ -248,11 +269,13 @@ def update_case_status(id):
             case['borrowed_by_user_name'] = borrower_name
             case['borrowed_date'] = current_timestamp
             case['returned_date'] = None
+            logging.info(f"Case {id} status changed to Borrowed by {borrower_name}.")
         elif action == 'return':
             if case['status'] == 'In Room':
                 return jsonify({"message": "Case is already in room"}), 409
             case['status'] = 'In Room'
             case['returned_date'] = current_timestamp
+            logging.info(f"Case {id} status changed to In Room (returned) by {borrower_name}.")
         else:
             logging.warning(f"Invalid action '{action}' for status update.")
             return jsonify({"message": "Invalid action"}), 400
@@ -283,7 +306,9 @@ def delete_case(id):
         logging.error(f"Error deleting case {id}: {e}")
         return jsonify({"message": "Failed to delete case"}), 500
 
-# --- Main entry point for Flask (for local development) ---
+# --- Main entry point for Flask (for local development and Render) ---
 if __name__ == '__main__':
-    app.run(debug=True, port=int(os.environ.get("PORT", 5000)))
-
+    # สำหรับการรันบน Render, Render จะกำหนด PORT ให้
+    # สำหรับการพัฒนาในเครื่อง (local development), จะใช้ port 5000 เป็นค่าเริ่มต้น
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=True) # host='0.0.0.0' เพื่อให้รับการเชื่อมต่อจากภายนอก
