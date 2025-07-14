@@ -98,6 +98,23 @@
             </div>
         </div>
 
+        <!-- Admin Password Modal - NEWLY ADDED -->
+        <div id="adminPasswordModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2 id="adminPasswordModalTitle">ยืนยันรหัสผ่านผู้ดูแลระบบ</h2>
+                <form id="adminPasswordForm">
+                    <label for="adminPasswordInput">รหัสผ่าน:</label>
+                    <input type="password" id="adminPasswordInput" required>
+                    <div class="button-group">
+                        <button type="submit" id="confirmAdminPasswordBtn" class="confirm-button">ยืนยัน</button>
+                        <button type="button" class="cancel-button">ยกเลิก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!----------------------------------------->
+
     </main>
 
     <script src="script.js"></script>
