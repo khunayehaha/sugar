@@ -7,42 +7,52 @@ import uuid
 import logging
 
 # --- Flask App Initialization ---
-# กำหนด static_folder เป็น 'static' (แนะนำ)
-# หมายความว่าไฟล์ static (index.html, css, js) จะอยู่ในโฟลเดอร์ชื่อ 'static'
-app = Flask(__name__, static_folder='static', static_url_path='') # แก้ไขตรงนี้
+# Set static_folder to 'static' (recommended)
+# This means static files (index.html, css, js) will be in the 'static' folder
+app = Flask(__name__, static_folder='static', static_url_path='')
 
 # --- Configure CORS ---
-# ระบุ Origins ที่อนุญาตอย่างชัดเจนเพื่อความปลอดภัย
-# คุณต้องแทนที่ 'https://sugar-vzh6.onrender.com' ด้วยโดเมนจริงของ Frontend บน Render ของคุณ
-# และเพิ่ม localhost สำหรับการพัฒนาในเครื่อง
+# Explicitly specify allowed Origins for security
+# You should replace 'https://sugar-vzh6.onrender.com' with your actual Frontend domain on Render
+# And add localhost for local development
 origins = [
     "https://sugar-vzh6.onrender.com",
-    "http://localhost:3000",  # ตัวอย่าง: ถ้า Frontend dev server รันที่นี่
+    "http://localhost:3000",  # Example: If Frontend dev server runs here
     "http://127.0.0.1:3000",
-    "http://localhost:5500",  # ตัวอย่าง: ถ้าใช้ Live Server ใน VS Code
+    "http://localhost:5500",  # Example: If using Live Server in VS Code
     "http://127.0.0.1:5500",
-    # เพิ่มโดเมนอื่นๆ ของ Frontend ที่คุณอาจมี
+    # Add other Frontend domains you might have
 ]
 
-CORS(app, origins=origins, supports_credentials=True) # supports_credentials=True หาก Frontend ส่ง cookies/auth headers
+CORS(app, origins=origins, supports_credentials=True) # supports_credentials=True if Frontend sends cookies/auth headers
 
 # --- Configure logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- กำหนดชื่อไฟล์ฐานข้อมูล (JSON file simulation) ---
+# --- Define the database file name (JSON file simulation) ---
 DATA_FILE = 'cases_data.json'
 
-# --- ฟังก์ชันช่วยเหลือสำหรับการจัดการข้อมูล ---
+# --- Timezone Configuration ---
+# Define the offset for Thailand Standard Time (UTC+7)
+THAILAND_TIMEZONE_OFFSET_HOURS = 7
+
+def get_thai_current_time_iso():
+    """
+    Returns the current time in Thailand Standard Time (UTC+7) in ISO format.
+    """
+    utc_now = datetime.datetime.utcnow()
+    thai_time = utc_now + datetime.timedelta(hours=THAILAND_TIMEZONE_OFFSET_HOURS)
+    return thai_time.isoformat()
+
+# --- Helper functions for data management ---
 def load_cases_data():
+    """
+    Loads case data from DATA_FILE. If the file doesn't exist, is empty,
+    or corrupted, it initializes with an empty list.
+    """
     if not os.path.exists(DATA_FILE) or os.stat(DATA_FILE).st_size == 0:
-        logging.info(f"'{DATA_FILE}' not found or is empty. Attempting to generate initial dummy data.")
-        try:
-            cases = generate_initial_dummy_data()
-            save_cases_data(cases)
-            return cases
-        except Exception as e:
-            logging.error(f"Error generating or saving initial dummy data: {e}")
-            return [] # Return empty list if initial data generation fails
+        logging.info(f"'{DATA_FILE}' not found or is empty. Initializing with an empty list.")
+        return [] # Return empty list, no dummy data generation
     
     try:
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
@@ -50,25 +60,16 @@ def load_cases_data():
             logging.info(f"Successfully loaded data from '{DATA_FILE}'. Number of cases: {len(data)}")
             return data
     except json.JSONDecodeError as e:
-        logging.error(f"JSONDecodeError while loading '{DATA_FILE}': {e}. File might be corrupted. Attempting to recreate with dummy data.")
-        try:
-            cases = generate_initial_dummy_data()
-            save_cases_data(cases)
-            return cases
-        except Exception as e_recreate:
-            logging.error(f"Error recreating '{DATA_FILE}' with dummy data after JSONDecodeError: {e_recreate}")
-            return []
+        logging.error(f"JSONDecodeError while loading '{DATA_FILE}': {e}. File might be corrupted. Initializing with an empty list.")
+        return [] # Return empty list if corrupted
     except IOError as e:
-        logging.error(f"IOError while loading '{DATA_FILE}': {e}. Attempting to generate initial dummy data.")
-        try:
-            cases = generate_initial_dummy_data()
-            save_cases_data(cases)
-            return cases
-        except Exception as e_initial:
-            logging.error(f"Error generating or saving initial dummy data after IOError: {e_initial}")
-            return []
+        logging.error(f"IOError while loading '{DATA_FILE}': {e}. Initializing with an empty list.")
+        return [] # Return empty list if IOError
 
 def save_cases_data(cases):
+    """
+    Saves the current cases data to DATA_FILE.
+    """
     try:
         with open(DATA_FILE, 'w', encoding='utf-8') as f:
             json.dump(cases, f, indent=4, ensure_ascii=False)
@@ -79,8 +80,13 @@ def save_cases_data(cases):
     except Exception as e:
         logging.error(f"An unexpected error occurred while saving data to '{DATA_FILE}': {e}")
 
-
+# This function is no longer called for initial data generation,
+# but kept here in case it's needed for other purposes later.
 def generate_initial_dummy_data():
+    """
+    Generates a list of dummy case data.
+    This function is no longer used for initial app startup data.
+    """
     dummy_data = []
     statuses = ["In Room", "Borrowed"]
     names = ["นายสมชาย ใจดี", "นางสาวสมหญิง สุขสันต์", "นายธนาคาร ร่ำรวย", "นางสาววิไลลักษณ์ งามตา", "นายประยุทธ์ มั่นคง", "นางสาวสุดารัตน์ เจริญสุข", "ด.ช.อัจฉริยะ น้อย", "นางสาวกุลธิดา สุภาพ"]
@@ -100,13 +106,12 @@ def generate_initial_dummy_data():
         if status == "Borrowed":
             borrower = user_names[i % len(user_names)]
             borrowed_by_user_name = borrower
-            borrowed_date = datetime.datetime.now().isoformat()
-
+            borrowed_date = get_thai_current_time_iso() # Use Thai time for dummy data
         if status == "In Room" and (i % 10 < 3):
             borrower = user_names[(i+1) % len(user_names)]
             borrowed_by_user_name = borrower
-            borrowed_date = datetime.datetime.now().isoformat()
-            returned_date = datetime.datetime.now().isoformat()
+            borrowed_date = get_thai_current_time_iso() # Use Thai time for dummy data
+            returned_date = get_thai_current_time_iso() # Use Thai time for dummy data
 
         dummy_data.append({
             "id": str(uuid.uuid4()),
@@ -120,16 +125,16 @@ def generate_initial_dummy_data():
             "borrowed_date": borrowed_date,
             "returned_date": returned_date,
             "last_updated_by_user_name": user_names[i % len(user_names)],
-            "last_updated_timestamp": datetime.datetime.now().isoformat()
+            "last_updated_timestamp": get_thai_current_time_iso() # Use Thai time for dummy data
         })
     logging.info(f"Generated {len(dummy_data)} dummy cases.")
     return dummy_data
 
-# โหลดข้อมูลเมื่อแอปเริ่มทำงาน
+# Load data when the app starts. It will now start with an empty list if the file is new/empty.
 cases_data = load_cases_data()
 
-# --- ROUTES สำหรับ Static Files ---
-# / จะส่ง index.html จากโฟลเดอร์ static
+# --- ROUTES for Static Files ---
+# / will serve index.html from the static folder
 @app.route('/')
 def serve_index():
     try:
@@ -138,7 +143,7 @@ def serve_index():
         logging.error(f"Error serving index.html: {e}")
         return "Error serving index.html", 500
 
-# /style.css จะส่ง style.css จากโฟลเดอร์ static
+# /style.css will serve style.css from the static folder
 @app.route('/style.css')
 def serve_css():
     try:
@@ -147,7 +152,7 @@ def serve_css():
         logging.error(f"Error serving style.css: {e}")
         return "Error serving style.css", 500
 
-# /script.js จะส่ง script.js จากโฟลเดอร์ static
+# /script.js will serve script.js from the static folder
 @app.route('/script.js')
 def serve_js():
     try:
@@ -158,7 +163,7 @@ def serve_js():
 
 # --- API Endpoints ---
 
-# 1. GET /api/cases - ดึงข้อมูลคดีทั้งหมด
+# 1. GET /api/cases - Retrieve all cases
 @app.route('/api/cases', methods=['GET'])
 def get_all_cases():
     try:
@@ -167,7 +172,7 @@ def get_all_cases():
         logging.error(f"Error getting all cases: {e}")
         return jsonify({"message": "Failed to retrieve case data"}), 500
 
-# 2. GET /api/cases/<id> - ดึงข้อมูลคดีเดียว
+# 2. GET /api/cases/<id> - Retrieve a single case
 @app.route('/api/cases/<id>', methods=['GET'])
 def get_case(id):
     try:
@@ -179,7 +184,7 @@ def get_case(id):
         logging.error(f"Error getting case with ID {id}: {e}")
         return jsonify({"message": "Failed to retrieve case data"}), 500
 
-# 3. POST /api/cases - เพิ่มคดีใหม่
+# 3. POST /api/cases - Add a new case
 @app.route('/api/cases', methods=['POST'])
 def add_case():
     try:
@@ -189,18 +194,18 @@ def add_case():
             return jsonify({"message": "Missing required fields"}), 400
 
         new_case = {
-            "id": str(uuid.uuid4()), # สร้าง ID ที่ไม่ซ้ำกัน
+            "id": str(uuid.uuid4()), # Generate a unique ID
             "farmer_name": data["farmer_name"],
             "farmer_account_no": data["farmer_account_no"],
             "cabinet_no": int(data["cabinet_no"]),
             "shelf_no": int(data["shelf_no"]),
             "sequence_no": int(data["sequence_no"]),
-            "status": "In Room", # คดีใหม่สถานะเริ่มต้นคืออยู่ในห้อง
+            "status": "In Room", # New case status is initially "In Room"
             "borrowed_by_user_name": None,
             "borrowed_date": None,
             "returned_date": None,
-            "last_updated_by_user_name": "System", # หรือจะระบุชื่อผู้ใช้ที่เพิ่ม
-            "last_updated_timestamp": datetime.datetime.now().isoformat()
+            "last_updated_by_user_name": "System", # Or specify the user who added it
+            "last_updated_timestamp": get_thai_current_time_iso() # Use Thai time
         }
         cases_data.append(new_case)
         save_cases_data(cases_data)
@@ -211,9 +216,9 @@ def add_case():
         return jsonify({"message": "Invalid input for numeric fields"}), 400
     except Exception as e:
         logging.error(f"Error adding new case: {e}")
-        return jsonify({"message": "เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่"}), 500 # Custom error message
+        return jsonify({"message": "An error occurred while saving data. Please try again."}), 500 # Custom error message
 
-# 4. PUT /api/cases/<id> - อัปเดตข้อมูลคดี
+# 4. PUT /api/cases/<id> - Update case data
 @app.route('/api/cases/<id>', methods=['PUT'])
 def update_case(id):
     try:
@@ -223,7 +228,7 @@ def update_case(id):
             logging.warning(f"Case with ID {id} not found for update.")
             return jsonify({"message": "Case not found"}), 404
 
-        # อัปเดตเฉพาะฟิลด์ที่ได้รับ
+        # Update only the fields received
         if 'farmer_name' in data: case['farmer_name'] = data['farmer_name']
         if 'farmer_account_no' in data: case['farmer_account_no'] = data['farmer_account_no']
         if 'cabinet_no' in data: case['cabinet_no'] = int(data['cabinet_no'])
@@ -231,7 +236,7 @@ def update_case(id):
         if 'sequence_no' in data: case['sequence_no'] = int(data['sequence_no'])
 
         case["last_updated_by_user_name"] = "System"
-        case["last_updated_timestamp"] = datetime.datetime.now().isoformat()
+        case["last_updated_timestamp"] = get_thai_current_time_iso() # Use Thai time
 
         save_cases_data(cases_data)
         logging.info(f"Case with ID {id} updated successfully.")
@@ -243,7 +248,7 @@ def update_case(id):
         logging.error(f"Error updating case {id}: {e}")
         return jsonify({"message": "Failed to update case data"}), 500
 
-# 5. PATCH /api/cases/<id>/status - อัปเดตสถานะยืม/คืน
+# 5. PATCH /api/cases/<id>/status - Update borrow/return status
 @app.route('/api/cases/<id>/status', methods=['PATCH'])
 def update_case_status(id):
     try:
@@ -260,7 +265,7 @@ def update_case_status(id):
              logging.warning("Missing action or borrower_name for status update.")
              return jsonify({"message": "Missing action or borrower_name"}), 400
 
-        current_timestamp = datetime.datetime.now().isoformat()
+        current_timestamp = get_thai_current_time_iso() # Use Thai time
 
         if action == 'borrow':
             if case['status'] == 'Borrowed':
@@ -289,7 +294,7 @@ def update_case_status(id):
         logging.error(f"Error updating case status for {id}: {e}")
         return jsonify({"message": "Failed to update case status"}), 500
 
-# 6. DELETE /api/cases/<id> - ลบคดี
+# 6. DELETE /api/cases/<id> - Delete a case
 @app.route('/api/cases/<id>', methods=['DELETE'])
 def delete_case(id):
     global cases_data
@@ -308,8 +313,7 @@ def delete_case(id):
 
 # --- Main entry point for Flask (for local development and Render) ---
 if __name__ == '__main__':
-    # สำหรับการรันบน Render, Render จะกำหนด PORT ให้
-    # สำหรับการพัฒนาในเครื่อง (local development), จะใช้ port 5000 เป็นค่าเริ่มต้น
+    # For running on Render, Render will assign the PORT.
+    # For local development, port 5000 is used by default.
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=True) # host='0.0.0.0' เพื่อให้รับการเชื่อมต่อจากภายนอก
-
+    app.run(host='0.0.0.0', port=port, debug=True) # host='0.0.0.0' to accept connections from external sources
