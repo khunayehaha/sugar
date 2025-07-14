@@ -5,6 +5,7 @@ import os
 import datetime
 import uuid
 import logging
+from functools import wraps # Import wraps for decorator
 
 # --- Flask App Initialization ---
 # Set static_folder to 'static' (recommended)
@@ -19,8 +20,8 @@ origins = [
     "https://sugar-vzh6.onrender.com",
     "http://localhost:3000",  # Example: If Frontend dev server runs here
     "http://127.0.0.1:3000",
-    "http://localhost:5500",  # Example: If using Live Server in VS Code
-    "http://127.0.0.1:5500",
+    "http://127.0.0.1:5500",  # Example: If using Live Server in VS Code
+    "http://localhost:5500",
     # Add other Frontend domains you might have
 ]
 
@@ -43,6 +44,39 @@ def get_thai_current_time_iso():
     utc_now = datetime.datetime.utcnow()
     thai_time = utc_now + datetime.timedelta(hours=THAILAND_TIMEZONE_OFFSET_HOURS)
     return thai_time.isoformat()
+
+# --- Admin Password Configuration ---
+ADMIN_PASSWORD = "lawsugar6" # Define the admin password
+
+def admin_password_required(f):
+    """
+    Decorator to check for a valid admin password in the request JSON.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not request.is_json:
+            logging.warning("Admin password check: Request is not JSON.")
+            return jsonify({"message": "Request must be JSON"}), 400
+        
+        data = request.json
+        provided_password = data.get('admin_password')
+
+        if not provided_password:
+            logging.warning("Admin password check: Password not provided.")
+            return jsonify({"message": "Admin password required"}), 401 # Unauthorized
+        
+        if provided_password != ADMIN_PASSWORD:
+            logging.warning("Admin password check: Incorrect password.")
+            return jsonify({"message": "Incorrect admin password"}), 403 # Forbidden
+        
+        # Remove the password from the request data before passing to the function
+        # to avoid it being saved or processed further unnecessarily.
+        if 'admin_password' in data:
+            del data['admin_password']
+            request.json = data # Update request.json after removal
+
+        return f(*args, **kwargs)
+    return decorated_function
 
 # --- Helper functions for data management ---
 def load_cases_data():
@@ -184,7 +218,7 @@ def get_case(id):
         logging.error(f"Error getting case with ID {id}: {e}")
         return jsonify({"message": "Failed to retrieve case data"}), 500
 
-# 3. POST /api/cases - Add a new case
+# 3. POST /api/cases - Add a new case (no password required for adding)
 @app.route('/api/cases', methods=['POST'])
 def add_case():
     try:
@@ -218,11 +252,12 @@ def add_case():
         logging.error(f"Error adding new case: {e}")
         return jsonify({"message": "An error occurred while saving data. Please try again."}), 500 # Custom error message
 
-# 4. PUT /api/cases/<id> - Update case data
+# 4. PUT /api/cases/<id> - Update case data (requires admin password)
 @app.route('/api/cases/<id>', methods=['PUT'])
+@admin_password_required # Apply the decorator here
 def update_case(id):
     try:
-        data = request.json
+        data = request.json # Data will already have 'admin_password' removed by the decorator
         case = next((c for c in cases_data if c['id'] == id), None)
         if not case:
             logging.warning(f"Case with ID {id} not found for update.")
@@ -248,7 +283,7 @@ def update_case(id):
         logging.error(f"Error updating case {id}: {e}")
         return jsonify({"message": "Failed to update case data"}), 500
 
-# 5. PATCH /api/cases/<id>/status - Update borrow/return status
+# 5. PATCH /api/cases/<id>/status - Update borrow/return status (no password required for this)
 @app.route('/api/cases/<id>/status', methods=['PATCH'])
 def update_case_status(id):
     try:
@@ -294,8 +329,9 @@ def update_case_status(id):
         logging.error(f"Error updating case status for {id}: {e}")
         return jsonify({"message": "Failed to update case status"}), 500
 
-# 6. DELETE /api/cases/<id> - Delete a case
+# 6. DELETE /api/cases/<id> - Delete a case (requires admin password)
 @app.route('/api/cases/<id>', methods=['DELETE'])
+@admin_password_required # Apply the decorator here
 def delete_case(id):
     global cases_data
     try:
