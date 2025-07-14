@@ -1,6 +1,7 @@
 // script.js
 
 // --- DOM Elements ---
+// Ensure these IDs match those in your index.html
 const addCaseBtn = document.getElementById('addCaseBtn');
 const caseModal = document.getElementById('caseModal');
 const caseForm = document.getElementById('caseForm');
@@ -35,6 +36,9 @@ const adminPasswordInput = document.getElementById('adminPasswordInput');
 const adminPasswordForm = document.getElementById('adminPasswordForm');
 
 // --- Global Variables ---
+// Define the Backend API URL
+// When Frontend and Backend run on the same Render Service,
+// use a Relative Path without the full domain.
 const API_BASE_URL = ''; 
 
 // Variables to store context for admin password actions
@@ -48,6 +52,7 @@ function formatDate(dateString) {
     if (!dateString) return '';
     try {
         const date = new Date(dateString);
+        // Check if it's an Invalid Date object
         if (isNaN(date.getTime())) {
             console.warn("Invalid date string provided to formatDate:", dateString);
             return 'Invalid Date';
@@ -67,9 +72,9 @@ function formatDate(dateString) {
 
 // --- Main Render Function ---
 function renderCases(casesToDisplay) {
-    caseList.innerHTML = ''; 
+    caseList.innerHTML = ''; // Clear old content in the table
 
-    if (!casesToDisplay || casesToDisplay.length === 0) {
+    if (!casesToDisplay || casesToDisplay.length === 0) { // Check if casesToDisplay is null/undefined or empty
         noResultsMessage.style.display = 'block';
         return;
     } else {
@@ -80,6 +85,7 @@ function renderCases(casesToDisplay) {
         const row = caseList.insertRow();
         row.dataset.caseId = c.id;
 
+        // Check if c.farmer_name has a value before using it
         row.insertCell().textContent = c.farmer_name || 'ไม่ระบุชื่อ'; 
         row.insertCell().textContent = c.farmer_account_no || 'ไม่ระบุเลขบัญชี';
         row.insertCell().textContent = c.cabinet_no !== undefined ? c.cabinet_no : 'ไม่ระบุ';
@@ -92,10 +98,10 @@ function renderCases(casesToDisplay) {
         if (c.status === "In Room") {
             statusBadge.classList.add('in-room');
             statusBadge.textContent = 'อยู่ในห้องสำนวน';
-        } else if (c.status === "Borrowed") {
+        } else if (c.status === "Borrowed") { // Add condition for clarity
             statusBadge.classList.add('borrowed');
             statusBadge.textContent = 'ถูกเบิกไป';
-        } else {
+        } else { // Case where status does not match expected
             statusBadge.classList.add('unknown-status');
             statusBadge.textContent = 'ไม่ทราบสถานะ';
         }
@@ -106,7 +112,7 @@ function renderCases(casesToDisplay) {
         if (c.status === "Borrowed") {
             borrowerInfo = `เบิกโดย: ${c.borrowed_by_user_name || 'ไม่ระบุ'}<br>เมื่อ: ${formatDate(c.borrowed_date)}`;
         } else if (c.status === "In Room" && c.returned_date) {
-            const lastBorrower = c.borrowed_by_user_name || 'ไม่ระบุ'; 
+            const lastBorrower = c.borrowed_by_user_name || 'ไม่ระบุ'; // Use previous borrower name for returned cases
             borrowerInfo = `คืนแล้วโดย: ${lastBorrower}<br>เมื่อ: ${formatDate(c.returned_date)}`;
         } else {
             borrowerInfo = 'ไม่มีข้อมูลการเบิก/คืน';
@@ -135,7 +141,7 @@ function renderCases(casesToDisplay) {
             borrowBtn.classList.add('borrow-btn');
             borrowBtn.onclick = () => openBorrowReturnModal(c.id, 'borrow');
             actionDiv.appendChild(borrowBtn);
-        } else if (c.status === "Borrowed") {
+        } else if (c.status === "Borrowed") { // Add condition for return button
             const returnBtn = document.createElement('button');
             returnBtn.textContent = 'คืน';
             returnBtn.classList.add('return-btn');
@@ -151,16 +157,17 @@ async function fetchCases() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/cases`); 
         if (!response.ok) {
-            const errorText = await response.text();
+            // Check HTTP status code and display appropriate message
+            const errorText = await response.text(); // Try to read error message from response
             throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
         const data = await response.json();
-        renderCases(data); 
-        return data;
+        renderCases(data); // Render data fetched from backend
+        return data; // Return all cases for search to use
     } catch (error) {
         console.error("Error fetching cases:", error);
         alert(`ไม่สามารถดึงข้อมูลแฟ้มคดีได้: ${error.message} กรุณาลองใหม่ในภายหลัง`);
-        renderCases([]); 
+        renderCases([]); // Clear table if error
         return [];
     }
 }
@@ -169,9 +176,9 @@ async function fetchCases() {
 
 function openAddCaseModal() {
     modalTitle.textContent = 'เพิ่มแฟ้มคดีใหม่';
-    caseForm.reset(); 
-    caseIdInput.value = ''; 
-    caseModal.classList.add('active'); 
+    caseForm.reset(); // Clear previous form data
+    caseIdInput.value = ''; // Clear hidden ID
+    caseModal.classList.add('active'); // Show modal
 }
 
 async function openEditCaseModal(id) {
@@ -218,9 +225,9 @@ async function performUpdateCase(caseId, caseData, adminPassword) {
         
         alert('แก้ไขข้อมูลแฟ้มคดีเรียบร้อยแล้ว');
         
-        fetchCases(); 
-        closeModal(caseModal); 
-        closeModal(adminPasswordModal); 
+        fetchCases(); // Re-fetch and re-render all cases from backend
+        closeModal(caseModal); // Close the original case edit modal
+        closeModal(adminPasswordModal); // Close password modal
     } catch (error) {
         console.error("Error saving case:", error);
         alert(`เกิดข้อผิดพลาดในการบันทึกข้อมูล: ${error.message} กรุณาลองใหม่`);
@@ -236,7 +243,7 @@ async function saveCase(event) {
     const cabinetNo = parseInt(cabinetNoInput.value);
     const shelfNo = parseInt(shelfNoInput.value);
     const sequenceNo = parseInt(sequenceNoInput.value);
-    const caseId = caseIdInput.value; 
+    const caseId = caseIdInput.value; // Will have a value if editing
 
     if (!farmerName || !farmerAccountNo || isNaN(cabinetNo) || isNaN(shelfNo) || isNaN(sequenceNo)) {
         alert('กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง (หมายเลขตู้, ชั้น, ลำดับ ต้องเป็นตัวเลข)');
@@ -273,7 +280,7 @@ async function saveCase(event) {
             
             alert('เพิ่มแฟ้มคดีใหม่เรียบร้อยแล้ว');
             
-            fetchCases(); 
+            fetchCases(); // Re-fetch and re-render all cases from backend
             closeModal(caseModal);
         } catch (error) {
             console.error("Error saving case:", error);
@@ -304,14 +311,14 @@ async function performDeleteCase(caseId, adminPassword) {
             }
             
             alert('ลบแฟ้มคดีเรียบร้อยแล้ว');
-            fetchCases(); 
-            closeModal(adminPasswordModal); 
+            fetchCases(); // Re-fetch and re-render
+            closeModal(adminPasswordModal); // Close password modal
         } catch (error) {
             console.error("Error deleting case:", error);
             alert(`เกิดข้อผิดพลาดในการลบข้อมูล: ${error.message} กรุณาลองใหม่`);
         }
     } else {
-        closeModal(adminPasswordModal); 
+        closeModal(adminPasswordModal); // Close password modal if user cancels confirm
     }
 }
 
@@ -337,10 +344,10 @@ async function openBorrowReturnModal(id, type) {
             confirmBorrowReturnBtn.textContent = 'ยืนยันการเบิก';
             borrowerNameInput.value = '';
             borrowerNameInput.placeholder = 'กรอกชื่อผู้เบิก';
-        } else { 
+        } else { // type === 'return'
             borrowReturnModalTitle.textContent = 'บันทึกการคืนแฟ้มคดี';
             confirmBorrowReturnBtn.textContent = 'ยืนยันการคืน';
-            borrowerNameInput.value = caseToHandle.borrowed_by_user_name || ''; 
+            borrowerNameInput.value = caseToHandle.borrowed_by_user_name || ''; // Pre-fill with last borrower name
             borrowerNameInput.placeholder = 'กรอกชื่อผู้คืน';
         }
         borrowReturnModal.classList.add('active');
@@ -361,6 +368,7 @@ async function handleBorrowReturn(event) {
         return;
     }
 
+    // Check status from DOM or from fetched data
     const currentStatusText = currentCaseStatusSpan.textContent;
     const action = (currentStatusText === "อยู่ในห้องสำนวน") ? "borrow" : "return";
 
@@ -383,7 +391,7 @@ async function handleBorrowReturn(event) {
         
         alert(action === 'borrow' ? 'บันทึกการเบิกแฟ้มคดีเรียบร้อยแล้ว' : 'บันทึกการคืนแฟ้มคดีเรียบร้อยแล้ว');
         
-        fetchCases(); 
+        fetchCases(); // Re-fetch and re-render
         closeModal(borrowReturnModal);
     } catch (error) {
         console.error("Error handling borrow/return:", error);
@@ -396,18 +404,21 @@ async function handleBorrowReturn(event) {
 async function performSearch() {
     const searchTerm = searchInput.value.trim().toLowerCase();
     
-    const allCases = await fetchCases(); 
+    // Always fetch all data first to use for searching
+    const allCases = await fetchCases(); // fetchCases() will handle rendering too
 
     if (!searchTerm) {
+        // If no search term, fetchCases() already loaded and rendered everything
         return;
     }
 
     if (!allCases || allCases.length === 0) {
-        renderCases([]); 
+        renderCases([]); // Display empty table if no data
         return;
     }
 
     const filtered = allCases.filter(c => {
+        // Ensure the field exists and is a string before using toLowerCase/includes
         const farmerNameMatch = (c.farmer_name && c.farmer_name.toLowerCase().includes(searchTerm));
         const farmerAccountNoMatch = (c.farmer_account_no && c.farmer_account_no.toLowerCase().includes(searchTerm));
         const cabinetMatch = (c.cabinet_no !== undefined && c.cabinet_no.toString().includes(searchTerm));
@@ -427,14 +438,15 @@ async function performSearch() {
                fullCabinetMatch || fullShelfMatch || fullSequenceMatch ||
                borrowerMatch || statusMatch;
     });
-    renderCases(filtered); 
+    renderCases(filtered); // Display search results
 }
 
 
 // --- Modal Close Functions ---
 function closeModal(modalElement) {
-    if (modalElement) { 
+    if (modalElement) { // Check if element exists
         modalElement.classList.remove('active');
+        // Clear password input when closing admin password modal
         if (modalElement === adminPasswordModal) {
             adminPasswordInput.value = '';
         }
@@ -443,7 +455,7 @@ function closeModal(modalElement) {
 
 // Admin Password Modal Logic
 function openAdminPasswordModal() {
-    adminPasswordInput.value = ''; 
+    adminPasswordInput.value = ''; // Clear any previous password
     adminPasswordModal.classList.add('active');
 }
 
@@ -456,7 +468,7 @@ async function submitAdminPassword(event) {
         return;
     }
 
-    // NEW: Verify password with backend first
+    // Verify password with backend first
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/verify-password`, {
             method: 'POST',
@@ -465,8 +477,9 @@ async function submitAdminPassword(event) {
         });
 
         if (!response.ok) {
+            // If response is not OK, it means password was incorrect or another backend error
             const errorData = await response.json();
-            alert(`รหัสผ่านไม่ถูกต้อง: ${errorData.message || response.statusText}`);
+            alert(`รหัสผ่านไม่ถูกต้อง: ${errorData.message || response.statusText}`); 
             adminPasswordInput.value = ''; // Clear password field
             return;
         }
@@ -490,8 +503,10 @@ async function submitAdminPassword(event) {
 // --- Event Listeners ---
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Initial fetch of cases when the page loads
     fetchCases(); 
 
+    // Event listener for all close buttons and cancel buttons
     document.querySelectorAll('.close-button, .cancel-button').forEach(button => {
         button.addEventListener('click', (e) => {
             let modal = e.target.closest('.modal');
@@ -501,6 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Close modal when clicking outside of modal content
     window.addEventListener('click', (event) => {
         if (event.target === caseModal) {
             closeModal(caseModal);
@@ -508,12 +524,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.target === borrowReturnModal) {
             closeModal(borrowReturnModal);
         }
-        if (event.target === adminPasswordModal) { 
+        if (event.target === adminPasswordModal) { // Close admin password modal
             closeModal(adminPasswordModal);
         }
     });
 
+    // Check if buttons exist before attaching Event Listeners
     if (addCaseBtn) addCaseBtn.addEventListener('click', openAddCaseModal);
+    // saveCase handles password check for edits
     if (caseForm) caseForm.addEventListener('submit', saveCase); 
     if (borrowReturnForm) borrowReturnForm.addEventListener('submit', handleBorrowReturn);
     if (searchBtn) searchBtn.addEventListener('click', performSearch);
@@ -527,9 +545,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (clearSearchBtn) {
         clearSearchBtn.addEventListener('click', () => {
             searchInput.value = '';
-            fetchCases(); 
+            fetchCases(); // Clear search and show all cases
         });
     }
 
+    // Event listener for admin password form submission
     if (adminPasswordForm) adminPasswordForm.addEventListener('submit', submitAdminPassword);
 });

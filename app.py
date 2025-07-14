@@ -52,7 +52,12 @@ def admin_password_required(f):
             logging.warning("Admin password check: Request is not JSON.")
             return jsonify({"message": "Request must be JSON"}), 400
         
-        data = request.json
+        try:
+            data = request.json # Attempt to parse JSON
+        except Exception as e:
+            logging.error(f"Error parsing JSON in admin_password_required: {e}")
+            return jsonify({"message": f"Invalid JSON format in request body: {e}"}), 400
+
         provided_password = data.get('admin_password')
 
         if not provided_password:
