@@ -22,7 +22,9 @@ origins = [
     "*" # เพิ่ม wildcard เพื่ออนุญาตทุกโดเมนชั่วคราวสำหรับการดีบัก CORS
 ]
 
-CORS(app, origins=origins, supports_credentials=True) 
+CORS(app, origins=origins, supports_credentials=True, 
+     # เพิ่ม Headers ที่อนุญาตให้ Frontend ส่งมาได้
+     allow_headers=["Content-Type", "X-Admin-Password"]) 
 
 # --- Configure logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -46,35 +48,23 @@ ADMIN_PASSWORD = "lawsugar6"
 
 def admin_password_required(f):
     """
-    Decorator to check for a valid admin password in the request JSON.
+    Decorator to check for a valid admin password in the request Headers (X-Admin-Password).
     This decorator is used for PUT and DELETE operations on cases.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not request.is_json:
-            logging.warning("Admin password check: Request is not JSON.")
-            return jsonify({"message": "Request must be JSON"}), 400
-        
-        try:
-            data = request.json # Attempt to parse JSON
-        except Exception as e:
-            logging.error(f"Error parsing JSON in admin_password_required: {e}")
-            return jsonify({"message": f"Invalid JSON format in request body: {e}"}), 400
-
-        provided_password = data.get('admin_password')
+        # ดึงรหัสผ่านจาก HTTP Header ที่ชื่อ 'X-Admin-Password'
+        provided_password = request.headers.get('X-Admin-Password')
 
         if not provided_password:
-            logging.warning("Admin password check: Password not provided.")
-            return jsonify({"message": "Admin password required"}), 401 
+            logging.warning("Admin password check: Password not provided in X-Admin-Password header.")
+            return jsonify({"message": "Admin password required in X-Admin-Password header"}), 401 # Unauthorized
         
         if provided_password != ADMIN_PASSWORD:
             logging.warning("Admin password check: Incorrect password.")
-            return jsonify({"message": "Incorrect admin password"}), 403 
+            return jsonify({"message": "Incorrect admin password"}), 403 # Forbidden
         
-        # Remove the password from the request data before passing to the function
-        if 'admin_password' in data:
-            del data['admin_password']
-            request.json = data 
+        # ไม่ต้องลบรหัสผ่านออกจาก request.json แล้ว เพราะไม่ได้อยู่ใน body
 
         return f(*args, **kwargs)
     return decorated_function
@@ -192,30 +182,7 @@ def serve_js():
 
 # --- API Endpoints ---
 
-# NEW: Endpoint to verify admin password
-@app.route('/api/admin/verify-password', methods=['POST'])
-def verify_admin_password():
-    if not request.is_json:
-        # If request is not JSON, try to read as text for debugging
-        try:
-            raw_data = request.get_data(as_text=True)
-            logging.error(f"Received non-JSON request to /api/admin/verify-password. Raw data: {raw_data}")
-        except Exception as e:
-            logging.error(f"Could not read raw data from non-JSON request: {e}")
-        return jsonify({"message": "Request must be JSON"}), 400
-    
-    try:
-        data = request.json
-    except Exception as e:
-        logging.error(f"Error parsing JSON from request to /api/admin/verify-password: {e}")
-        return jsonify({"message": f"Invalid JSON format in request body: {e}"}), 400
-
-    provided_password = data.get('admin_password')
-
-    if provided_password == ADMIN_PASSWORD:
-        return jsonify({"message": "Password correct"}), 200
-    else:
-        return jsonify({"message": "Incorrect password"}), 403 
+# ลบ Endpoint verify_admin_password ออก เพราะจะตรวจสอบใน decorator โดยตรงแล้ว
 
 # 1. GET /api/cases - Retrieve all cases
 @app.route('/api/cases', methods=['GET'])
@@ -272,11 +239,12 @@ def add_case():
         logging.error(f"Error adding new case: {e}")
         return jsonify({"message": "An error occurred while saving data. Please try again."}), 500 
 
-# 4. PUT /api/cases/<id> - Update case data (requires admin password)
+# 4. PUT /api/cases/<id> - Update case data (requires admin password in header)
 @app.route('/api/cases/<id>', methods=['PUT'])
 @admin_password_required 
 def update_case(id):
     try:
+        # data จะไม่มี admin_password แล้ว เพราะถูกดึงออกจาก header ใน decorator
         data = request.json 
         case = next((c for c in cases_data if c['id'] == id), None)
         if not case:
@@ -348,7 +316,7 @@ def update_case_status(id):
         logging.error(f"Error updating case status for {id}: {e}")
         return jsonify({"message": "Failed to update case status"}), 500
 
-# 6. DELETE /api/cases/<id> - Delete a case (requires admin password)
+# 6. DELETE /api/cases/<id> - Delete a case (requires admin password in header)
 @app.route('/api/cases/<id>', methods=['DELETE'])
 @admin_password_required 
 def delete_case(id):

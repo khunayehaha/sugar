@@ -198,7 +198,7 @@ async function openEditCaseModal(id) {
         sequenceNoInput.value = caseToEdit.sequence_no !== undefined ? caseToEdit.sequence_no : '';
         caseIdInput.value = caseToEdit.id;
         
-        // Now open the main edit modal directly. Password check will happen on save.
+        // Open the main edit modal directly. Password check will happen on save.
         caseModal.classList.add('active');
 
     } catch (error) {
@@ -209,13 +209,14 @@ async function openEditCaseModal(id) {
 
 // Function to perform the actual case update after password verification
 async function performUpdateCase(caseId, caseData, adminPassword) {
-    const dataToSend = { ...caseData, admin_password: adminPassword };
-
     try {
         const response = await fetch(`${API_BASE_URL}/api/cases/${caseId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dataToSend)
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Admin-Password': adminPassword // Send password in Header
+            },
+            body: JSON.stringify(caseData) // body no longer contains password
         });
         
         if (!response.ok) {
@@ -302,8 +303,11 @@ async function performDeleteCase(caseId, adminPassword) {
         try {
             const response = await fetch(`${API_BASE_URL}/api/cases/${caseId}`, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ admin_password: adminPassword })
+                headers: { 
+                    'Content-Type': 'application/json', // Still need Content-Type even without body in some cases
+                    'X-Admin-Password': adminPassword // Send password in Header
+                }
+                // No body for DELETE now
             });
             if (!response.ok) {
                 const errorData = await response.json();
@@ -468,35 +472,18 @@ async function submitAdminPassword(event) {
         return;
     }
 
-    // Verify password with backend first
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/verify-password`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ admin_password: adminPassword })
-        });
+    // No longer verifying password with a separate endpoint.
+    // The password will be sent directly with the PUT/DELETE request in a header.
+    // The backend decorator will handle the verification.
 
-        if (!response.ok) {
-            // If response is not OK, it means password was incorrect or another backend error
-            const errorData = await response.json();
-            alert(`รหัสผ่านไม่ถูกต้อง: ${errorData.message || response.statusText}`); 
-            adminPasswordInput.value = ''; // Clear password field
-            return;
-        }
-
-        // Password is correct, proceed with the action
-        if (currentAdminAction === 'edit_save') {
-            performUpdateCase(currentAdminCaseId, currentAdminCaseData, adminPassword);
-        } else if (currentAdminAction === 'delete') {
-            performDeleteCase(currentAdminCaseId, adminPassword);
-        }
-        // No need to close adminPasswordModal here, it will be closed by performUpdateCase/performDeleteCase on success
-        // or remain open if there's a subsequent error in the action itself.
-
-    } catch (error) {
-        console.error("Error verifying admin password:", error);
-        alert(`เกิดข้อผิดพลาดในการตรวจสอบรหัสผ่าน: ${error.message} กรุณาลองใหม่`);
+    // Proceed with the action
+    if (currentAdminAction === 'edit_save') {
+        performUpdateCase(currentAdminCaseId, currentAdminCaseData, adminPassword);
+    } else if (currentAdminAction === 'delete') {
+        performDeleteCase(currentAdminCaseId, adminPassword);
     }
+    // No need to close adminPasswordModal here, it will be closed by performUpdateCase/performDeleteCase on success
+    // or remain open if there's a subsequent error in the action itself.
 }
 
 
