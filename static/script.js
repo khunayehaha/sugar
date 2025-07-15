@@ -304,7 +304,7 @@ async function performDeleteCase(caseId, adminPassword) {
             const response = await fetch(`${API_BASE_URL}/api/cases/${caseId}`, {
                 method: 'DELETE',
                 headers: { 
-                    'Content-Type': 'application/json', // Still need Content-Type even without body in some cases
+                    // No 'Content-Type' header needed for DELETE without a body
                     'X-Admin-Password': adminPassword // Send password in Header
                 }
                 // No body for DELETE now
@@ -471,10 +471,6 @@ async function submitAdminPassword(event) {
         alert('กรุณากรอกรหัสผ่านผู้ดูแลระบบ');
         return;
     }
-
-    // No longer verifying password with a separate endpoint.
-    // The password will be sent directly with the PUT/DELETE request in a header.
-    // The backend decorator will handle the verification.
 
     // Proceed with the action
     if (currentAdminAction === 'edit_save') {

@@ -11,6 +11,7 @@ from functools import wraps
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
+from google.cloud.exceptions import GoogleCloudError # Import for specific Google Cloud errors
 
 # --- Flask App Initialization ---
 app = Flask(__name__, static_folder='static', static_url_path='')
@@ -23,7 +24,7 @@ origins = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5500",  
     "http://localhost:5500",
-    "*" 
+    "*" # Wildcard for broad testing, should be specific in production
 ]
 
 CORS(app, origins=origins, supports_credentials=True, 
@@ -35,6 +36,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # --- NEW: Firebase Initialization ---
 # Get the Firebase Service Account Key from environment variable
 # This variable must be set on Render.com (e.g., FIREBASE_SERVICE_ACCOUNT_KEY)
+# Initialize db as None globally
+db = None 
+
 firebase_service_account_key_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY')
 
 if firebase_service_account_key_json:
@@ -46,13 +50,15 @@ if firebase_service_account_key_json:
         firebase_admin.initialize_app(cred)
         db = firestore.client()
         logging.info("Firebase Admin SDK initialized successfully and connected to Firestore.")
+    except json.JSONDecodeError as e:
+        logging.error(f"Error parsing FIREBASE_SERVICE_ACCOUNT_KEY JSON: {e}. Please ensure it's valid JSON.")
+        db = None
     except Exception as e:
-        logging.error(f"Error initializing Firebase Admin SDK: {e}")
-        # Exit or handle the error gracefully, as database operations will fail
-        db = None # Set db to None if initialization fails
+        logging.error(f"Generic error initializing Firebase Admin SDK: {e}")
+        db = None
 else:
     logging.error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable not set. Firestore will not be available.")
-    db = None # Set db to None if env var is missing
+    db = None
 
 # --- Timezone Configuration ---
 THAILAND_TIMEZONE_OFFSET_HOURS = 7
@@ -88,9 +94,6 @@ def admin_password_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- Helper functions for data management (Now using Firestore) ---
-# load_cases_data and save_cases_data are no longer needed as we interact directly with Firestore
-
 # --- ROUTES for Static Files ---
 @app.route('/')
 def serve_index():
@@ -120,10 +123,10 @@ def serve_js():
 
 # 1. GET /api/cases - Retrieve all cases
 @app.route('/api/cases', methods=['GET'])
-# Removed 'async' keyword
 def get_all_cases():
     if db is None:
-        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
+        logging.error("GET /api/cases: Firestore DB object is None.")
+        return jsonify({"message": "Database not initialized. Please check server logs for Firebase errors."}), 500
     try:
         cases_ref = db.collection('cases') # Reference to 'cases' collection
         docs = cases_ref.stream() # Get all documents
@@ -136,16 +139,19 @@ def get_all_cases():
         
         logging.info(f"Retrieved {len(all_cases)} cases from Firestore.")
         return jsonify(all_cases)
+    except GoogleCloudError as e:
+        logging.error(f"Firestore error getting all cases: {e.code} - {e.message}")
+        return jsonify({"message": f"Firestore error: {e.message}"}), 500
     except Exception as e:
-        logging.error(f"Error getting all cases from Firestore: {e}")
+        logging.error(f"Unexpected error getting all cases from Firestore: {e}")
         return jsonify({"message": "Failed to retrieve case data from database"}), 500
 
 # 2. GET /api/cases/<id> - Retrieve a single case
 @app.route('/api/cases/<id>', methods=['GET'])
-# Removed 'async' keyword
 def get_case(id):
     if db is None:
-        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
+        logging.error(f"GET /api/cases/{id}: Firestore DB object is None.")
+        return jsonify({"message": "Database not initialized. Please check server logs for Firebase errors."}), 500
     try:
         case_ref = db.collection('cases').document(id) # Reference to a specific document
         doc = case_ref.get()
@@ -158,16 +164,19 @@ def get_case(id):
         else:
             logging.warning(f"Case with ID {id} not found in Firestore.")
             return jsonify({"message": "Case not found"}), 404
+    except GoogleCloudError as e:
+        logging.error(f"Firestore error getting case {id}: {e.code} - {e.message}")
+        return jsonify({"message": f"Firestore error: {e.message}"}), 500
     except Exception as e:
-        logging.error(f"Error getting case with ID {id} from Firestore: {e}")
+        logging.error(f"Unexpected error getting case with ID {id} from Firestore: {e}")
         return jsonify({"message": "Failed to retrieve case data from database"}), 500
 
 # 3. POST /api/cases - Add a new case
 @app.route('/api/cases', methods=['POST'])
-# Removed 'async' keyword
 def add_case():
     if db is None:
-        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
+        logging.error("POST /api/cases: Firestore DB object is None.")
+        return jsonify({"message": "Database not initialized. Please check server logs for Firebase errors."}), 500
     try:
         data = request.json
         if not all(k in data for k in ["farmer_name", "farmer_account_no", "cabinet_no", "shelf_no", "sequence_no"]):
@@ -198,17 +207,20 @@ def add_case():
     except ValueError as e:
         logging.error(f"ValueError when adding case (e.g., cabinet_no not int): {e}")
         return jsonify({"message": "Invalid input for numeric fields"}), 400
+    except GoogleCloudError as e:
+        logging.error(f"Firestore error adding new case: {e.code} - {e.message}")
+        return jsonify({"message": f"Firestore error: {e.message}"}), 500
     except Exception as e:
-        logging.error(f"Error adding new case to Firestore: {e}")
+        logging.error(f"Unexpected error adding new case to Firestore: {e}")
         return jsonify({"message": "An error occurred while saving data to database. Please try again."}), 500 
 
 # 4. PUT /api/cases/<id> - Update case data
 @app.route('/api/cases/<id>', methods=['PUT'])
 @admin_password_required 
-# Removed 'async' keyword
 def update_case(id):
     if db is None:
-        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
+        logging.error(f"PUT /api/cases/{id}: Firestore DB object is None.")
+        return jsonify({"message": "Database not initialized. Please check server logs for Firebase errors."}), 500
     try:
         data = request.json 
         case_ref = db.collection('cases').document(id)
@@ -240,16 +252,19 @@ def update_case(id):
     except ValueError as e:
         logging.error(f"ValueError when updating case {id} in Firestore: {e}")
         return jsonify({"message": "Invalid input for numeric fields"}), 400
+    except GoogleCloudError as e:
+        logging.error(f"Firestore error updating case {id}: {e.code} - {e.message}")
+        return jsonify({"message": f"Firestore error: {e.message}"}), 500
     except Exception as e:
-        logging.error(f"Error updating case {id} in Firestore: {e}")
+        logging.error(f"Unexpected error updating case {id} in Firestore: {e}")
         return jsonify({"message": "Failed to update case data in database"}), 500
 
 # 5. PATCH /api/cases/<id>/status - Update borrow/return status
 @app.route('/api/cases/<id>/status', methods=['PATCH'])
-# Removed 'async' keyword
 def update_case_status(id):
     if db is None:
-        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
+        logging.error(f"PATCH /api/cases/{id}/status: Firestore DB object is None.")
+        return jsonify({"message": "Database not initialized. Please check server logs for Firebase errors."}), 500
     try:
         data = request.json
         case_ref = db.collection('cases').document(id)
@@ -299,17 +314,20 @@ def update_case_status(id):
         updated_case_data['id'] = updated_doc.id
 
         return jsonify(updated_case_data)
+    except GoogleCloudError as e:
+        logging.error(f"Firestore error updating case status for {id}: {e.code} - {e.message}")
+        return jsonify({"message": f"Firestore error: {e.message}"}), 500
     except Exception as e:
-        logging.error(f"Error updating case status for {id} in Firestore: {e}")
+        logging.error(f"Unexpected error updating case status for {id} in Firestore: {e}")
         return jsonify({"message": "Failed to update case status in database"}), 500
 
 # 6. DELETE /api/cases/<id> - Delete a case
 @app.route('/api/cases/<id>', methods=['DELETE'])
 @admin_password_required 
-# Removed 'async' keyword
 def delete_case(id):
     if db is None:
-        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
+        logging.error(f"DELETE /api/cases/{id}: Firestore DB object is None.")
+        return jsonify({"message": "Database not initialized. Please check server logs for Firebase errors."}), 500
     try:
         case_ref = db.collection('cases').document(id)
         doc = case_ref.get()
@@ -321,12 +339,14 @@ def delete_case(id):
         else:
             logging.warning(f"Case with ID {id} not found in Firestore for deletion.")
             return jsonify({"message": "Case not found"}), 404
+    except GoogleCloudError as e:
+        logging.error(f"Firestore error deleting case {id}: {e.code} - {e.message}")
+        return jsonify({"message": f"Firestore error: {e.message}"}), 500
     except Exception as e:
-        logging.error(f"Error deleting case {id} from Firestore: {e}")
+        logging.error(f"Unexpected error deleting case {id} from Firestore: {e}")
         return jsonify({"message": "Failed to delete case from database"}), 500
 
 # --- Main entry point for Flask (for local development and Render) ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    # Removed 'threaded=True' as it's not relevant for Gunicorn and async views are removed
     app.run(host='0.0.0.0', port=port, debug=True) 
