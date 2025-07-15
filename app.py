@@ -120,7 +120,8 @@ def serve_js():
 
 # 1. GET /api/cases - Retrieve all cases
 @app.route('/api/cases', methods=['GET'])
-async def get_all_cases():
+# Removed 'async' keyword
+def get_all_cases():
     if db is None:
         return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
@@ -141,7 +142,8 @@ async def get_all_cases():
 
 # 2. GET /api/cases/<id> - Retrieve a single case
 @app.route('/api/cases/<id>', methods=['GET'])
-async def get_case(id):
+# Removed 'async' keyword
+def get_case(id):
     if db is None:
         return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
@@ -162,7 +164,8 @@ async def get_case(id):
 
 # 3. POST /api/cases - Add a new case
 @app.route('/api/cases', methods=['POST'])
-async def add_case():
+# Removed 'async' keyword
+def add_case():
     if db is None:
         return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
@@ -202,7 +205,8 @@ async def add_case():
 # 4. PUT /api/cases/<id> - Update case data
 @app.route('/api/cases/<id>', methods=['PUT'])
 @admin_password_required 
-async def update_case(id):
+# Removed 'async' keyword
+def update_case(id):
     if db is None:
         return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
@@ -242,7 +246,8 @@ async def update_case(id):
 
 # 5. PATCH /api/cases/<id>/status - Update borrow/return status
 @app.route('/api/cases/<id>/status', methods=['PATCH'])
-async def update_case_status(id):
+# Removed 'async' keyword
+def update_case_status(id):
     if db is None:
         return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
@@ -301,7 +306,8 @@ async def update_case_status(id):
 # 6. DELETE /api/cases/<id> - Delete a case
 @app.route('/api/cases/<id>', methods=['DELETE'])
 @admin_password_required 
-async def delete_case(id):
+# Removed 'async' keyword
+def delete_case(id):
     if db is None:
         return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
@@ -322,6 +328,5 @@ async def delete_case(id):
 # --- Main entry point for Flask (for local development and Render) ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    # Use async_mode='threading' for Flask-FireBase async operations
-    app.run(host='0.0.0.0', port=port, debug=True, threaded=True) 
-
+    # Removed 'threaded=True' as it's not relevant for Gunicorn and async views are removed
+    app.run(host='0.0.0.0', port=port, debug=True) 
