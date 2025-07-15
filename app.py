@@ -7,30 +7,52 @@ import uuid
 import logging
 from functools import wraps 
 
+# --- NEW: Firebase Imports ---
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
 # --- Flask App Initialization ---
 app = Flask(__name__, static_folder='static', static_url_path='')
 
 # --- Configure CORS ---
-# ให้ CORS อนุญาตทุก Origin ชั่วคราวเพื่อทดสอบปัญหา
-# ใน Production ควรระบุ Origins ที่อนุญาตอย่างชัดเจนเพื่อความปลอดภัย
+# Allow all origins for debugging, but specify explicitly in production for security
 origins = [
     "https://sugar-vzh6.onrender.com",
     "http://localhost:3000",  
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5500",  
     "http://localhost:5500",
-    "*" # เพิ่ม wildcard เพื่ออนุญาตทุกโดเมนชั่วคราวสำหรับการดีบัก CORS
+    "*" 
 ]
 
 CORS(app, origins=origins, supports_credentials=True, 
-     # เพิ่ม Headers ที่อนุญาตให้ Frontend ส่งมาได้
      allow_headers=["Content-Type", "X-Admin-Password"]) 
 
 # --- Configure logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- Define the database file name (JSON file simulation) ---
-DATA_FILE = 'cases_data.json'
+# --- NEW: Firebase Initialization ---
+# Get the Firebase Service Account Key from environment variable
+# This variable must be set on Render.com (e.g., FIREBASE_SERVICE_ACCOUNT_KEY)
+firebase_service_account_key_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY')
+
+if firebase_service_account_key_json:
+    try:
+        # Load the JSON string into a Python dictionary
+        cred_dict = json.loads(firebase_service_account_key_json)
+        # Initialize Firebase Admin SDK
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+        logging.info("Firebase Admin SDK initialized successfully and connected to Firestore.")
+    except Exception as e:
+        logging.error(f"Error initializing Firebase Admin SDK: {e}")
+        # Exit or handle the error gracefully, as database operations will fail
+        db = None # Set db to None if initialization fails
+else:
+    logging.error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable not set. Firestore will not be available.")
+    db = None # Set db to None if env var is missing
 
 # --- Timezone Configuration ---
 THAILAND_TIMEZONE_OFFSET_HOURS = 7
@@ -53,107 +75,21 @@ def admin_password_required(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # ดึงรหัสผ่านจาก HTTP Header ที่ชื่อ 'X-Admin-Password'
         provided_password = request.headers.get('X-Admin-Password')
 
         if not provided_password:
             logging.warning("Admin password check: Password not provided in X-Admin-Password header.")
-            return jsonify({"message": "Admin password required in X-Admin-Password header"}), 401 # Unauthorized
+            return jsonify({"message": "Admin password required in X-Admin-Password header"}), 401 
         
         if provided_password != ADMIN_PASSWORD:
             logging.warning("Admin password check: Incorrect password.")
-            return jsonify({"message": "Incorrect admin password"}), 403 # Forbidden
+            return jsonify({"message": "Incorrect admin password"}), 403 
         
-        # ไม่ต้องลบรหัสผ่านออกจาก request.json แล้ว เพราะไม่ได้อยู่ใน body
-
         return f(*args, **kwargs)
     return decorated_function
 
-# --- Helper functions for data management ---
-def load_cases_data():
-    """
-    Loads case data from DATA_FILE. If the file doesn't exist, is empty,
-    or corrupted, it initializes with an empty list.
-    """
-    if not os.path.exists(DATA_FILE) or os.stat(DATA_FILE).st_size == 0:
-        logging.info(f"'{DATA_FILE}' not found or is empty. Initializing with an empty list.")
-        return [] 
-    
-    try:
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            logging.info(f"Successfully loaded data from '{DATA_FILE}'. Number of cases: {len(data)}")
-            return data
-    except json.JSONDecodeError as e:
-        logging.error(f"JSONDecodeError while loading '{DATA_FILE}': {e}. File might be corrupted. Initializing with an empty list.")
-        return [] 
-    except IOError as e:
-        logging.error(f"IOError while loading '{DATA_FILE}': {e}. Initializing with an empty list.")
-        return [] 
-
-def save_cases_data(cases):
-    """
-    Saves the current cases data to DATA_FILE.
-    """
-    try:
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(cases, f, indent=4, ensure_ascii=False)
-        logging.info(f"Successfully saved data to '{DATA_FILE}'. Number of cases: {len(cases)}")
-    except IOError as e:
-        logging.error(f"IOError while saving data to '{DATA_FILE}': {e}")
-    except Exception as e:
-        logging.error(f"An unexpected error occurred while saving data to '{DATA_FILE}': {e}")
-
-def generate_initial_dummy_data():
-    """
-    Generates a list of dummy case data.
-    This function is no longer used for initial app startup data.
-    """
-    dummy_data = []
-    statuses = ["In Room", "Borrowed"]
-    names = ["นายสมชาย ใจดี", "นางสาวสมหญิง สุขสันต์", "นายธนาคาร ร่ำรวย", "นางสาววิไลลักษณ์ งามตา", "นายประยุทธ์ มั่นคง", "นางสาวสุดารัตน์ เจริญสุข", "ด.ช.อัจฉริยะ น้อย", "นางสาวกุลธิดา สุภาพ"]
-    account_prefixes = ["AC", "BC", "CR", "PL"]
-    cabinet_count = 50
-    shelf_count = 10
-    seq_count = 5
-
-    user_names = ["เจนนิเฟอร์", "โรเบิร์ต", "สุชาดา", "วิชัย", "เมษายน", "ธนากร"]
-
-    for i in range(300):
-        status = statuses[i % len(statuses)]
-        borrowed_by_user_name = None
-        borrowed_date = None
-        returned_date = None
-
-        if status == "Borrowed":
-            borrower = user_names[i % len(user_names)]
-            borrowed_by_user_name = borrower
-            borrowed_date = get_thai_current_time_iso() 
-        if status == "In Room" and (i % 10 < 3):
-            borrower = user_names[(i+1) % len(user_names)]
-            borrowed_by_user_name = borrower
-            borrowed_date = get_thai_current_time_iso() 
-            returned_date = get_thai_current_time_iso() 
-
-        dummy_data.append({
-            "id": str(uuid.uuid4()),
-            "farmer_name": f"{names[i % len(names)]} คดีที่ {i + 1}",
-            "farmer_account_no": f"{account_prefixes[i % len(account_prefixes)]}-{str(10000 + i).zfill(5)}",
-            "cabinet_no": (i % cabinet_count) + 1,
-            "shelf_no": (i % shelf_count) + 1,
-            "sequence_no": (i % seq_count) + 1,
-            "status": status,
-            "borrowed_by_user_name": borrowed_by_user_name,
-            "borrowed_date": borrowed_date,
-            "returned_date": returned_date,
-            "last_updated_by_user_name": user_names[i % len(user_names)],
-            "last_updated_timestamp": get_thai_current_time_iso() 
-        })
-    logging.info(f"Generated {len(dummy_data)} dummy cases.")
-    return dummy_data
-
-# Load data when the app starts. It will now start with an empty list if the file is new/empty.
-cases_data = load_cases_data()
+# --- Helper functions for data management (Now using Firestore) ---
+# load_cases_data and save_cases_data are no longer needed as we interact directly with Firestore
 
 # --- ROUTES for Static Files ---
 @app.route('/')
@@ -180,42 +116,62 @@ def serve_js():
         logging.error(f"Error serving script.js: {e}")
         return "Error serving script.js", 500
 
-# --- API Endpoints ---
-
-# ลบ Endpoint verify_admin_password ออก เพราะจะตรวจสอบใน decorator โดยตรงแล้ว
+# --- API Endpoints (Modified to use Firestore) ---
 
 # 1. GET /api/cases - Retrieve all cases
 @app.route('/api/cases', methods=['GET'])
-def get_all_cases():
+async def get_all_cases():
+    if db is None:
+        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
-        return jsonify(cases_data)
+        cases_ref = db.collection('cases') # Reference to 'cases' collection
+        docs = cases_ref.stream() # Get all documents
+        
+        all_cases = []
+        for doc in docs:
+            case_data = doc.to_dict()
+            case_data['id'] = doc.id # Add document ID to the data
+            all_cases.append(case_data)
+        
+        logging.info(f"Retrieved {len(all_cases)} cases from Firestore.")
+        return jsonify(all_cases)
     except Exception as e:
-        logging.error(f"Error getting all cases: {e}")
-        return jsonify({"message": "Failed to retrieve case data"}), 500
+        logging.error(f"Error getting all cases from Firestore: {e}")
+        return jsonify({"message": "Failed to retrieve case data from database"}), 500
 
 # 2. GET /api/cases/<id> - Retrieve a single case
 @app.route('/api/cases/<id>', methods=['GET'])
-def get_case(id):
+async def get_case(id):
+    if db is None:
+        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
-        case = next((c for c in cases_data if c['id'] == id), None)
-        if case:
-            return jsonify(case)
-        return jsonify({"message": "Case not found"}), 404
+        case_ref = db.collection('cases').document(id) # Reference to a specific document
+        doc = case_ref.get()
+        
+        if doc.exists:
+            case_data = doc.to_dict()
+            case_data['id'] = doc.id # Add document ID to the data
+            logging.info(f"Retrieved case with ID {id} from Firestore.")
+            return jsonify(case_data)
+        else:
+            logging.warning(f"Case with ID {id} not found in Firestore.")
+            return jsonify({"message": "Case not found"}), 404
     except Exception as e:
-        logging.error(f"Error getting case with ID {id}: {e}")
-        return jsonify({"message": "Failed to retrieve case data"}), 500
+        logging.error(f"Error getting case with ID {id} from Firestore: {e}")
+        return jsonify({"message": "Failed to retrieve case data from database"}), 500
 
-# 3. POST /api/cases - Add a new case (no password required for adding)
+# 3. POST /api/cases - Add a new case
 @app.route('/api/cases', methods=['POST'])
-def add_case():
+async def add_case():
+    if db is None:
+        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
         data = request.json
         if not all(k in data for k in ["farmer_name", "farmer_account_no", "cabinet_no", "shelf_no", "sequence_no"]):
             logging.warning("Missing required fields for adding a case.")
             return jsonify({"message": "Missing required fields"}), 400
 
-        new_case = {
-            "id": str(uuid.uuid4()), 
+        new_case_data = {
             "farmer_name": data["farmer_name"],
             "farmer_account_no": data["farmer_account_no"],
             "cabinet_no": int(data["cabinet_no"]),
@@ -228,56 +184,74 @@ def add_case():
             "last_updated_by_user_name": "System", 
             "last_updated_timestamp": get_thai_current_time_iso() 
         }
-        cases_data.append(new_case)
-        save_cases_data(cases_data)
-        logging.info(f"New case added successfully: {new_case['id']}")
-        return jsonify(new_case), 201 
+        
+        # Add a new document to the 'cases' collection
+        doc_ref = db.collection('cases').document() # Firestore generates a new ID
+        doc_ref.set(new_case_data)
+        
+        new_case_data['id'] = doc_ref.id # Add the generated ID to the response
+        logging.info(f"New case added successfully to Firestore: {new_case_data['id']}")
+        return jsonify(new_case_data), 201 
     except ValueError as e:
         logging.error(f"ValueError when adding case (e.g., cabinet_no not int): {e}")
         return jsonify({"message": "Invalid input for numeric fields"}), 400
     except Exception as e:
-        logging.error(f"Error adding new case: {e}")
-        return jsonify({"message": "An error occurred while saving data. Please try again."}), 500 
+        logging.error(f"Error adding new case to Firestore: {e}")
+        return jsonify({"message": "An error occurred while saving data to database. Please try again."}), 500 
 
-# 4. PUT /api/cases/<id> - Update case data (requires admin password in header)
+# 4. PUT /api/cases/<id> - Update case data
 @app.route('/api/cases/<id>', methods=['PUT'])
 @admin_password_required 
-def update_case(id):
+async def update_case(id):
+    if db is None:
+        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
-        # data จะไม่มี admin_password แล้ว เพราะถูกดึงออกจาก header ใน decorator
         data = request.json 
-        case = next((c for c in cases_data if c['id'] == id), None)
-        if not case:
-            logging.warning(f"Case with ID {id} not found for update.")
+        case_ref = db.collection('cases').document(id)
+        doc = case_ref.get()
+
+        if not doc.exists:
+            logging.warning(f"Case with ID {id} not found in Firestore for update.")
             return jsonify({"message": "Case not found"}), 404
 
-        if 'farmer_name' in data: case['farmer_name'] = data['farmer_name']
-        if 'farmer_account_no' in data: case['farmer_account_no'] = data['farmer_account_no']
-        if 'cabinet_no' in data: case['cabinet_no'] = int(data['cabinet_no'])
-        if 'shelf_no' in data: case['shelf_no'] = int(data['shelf_no'])
-        if 'sequence_no' in data: case['sequence_no'] = int(data['sequence_no'])
+        update_data = {}
+        if 'farmer_name' in data: update_data['farmer_name'] = data['farmer_name']
+        if 'farmer_account_no' in data: update_data['farmer_account_no'] = data['farmer_account_no']
+        if 'cabinet_no' in data: update_data['cabinet_no'] = int(data['cabinet_no'])
+        if 'shelf_no' in data: update_data['shelf_no'] = int(data['shelf_no'])
+        if 'sequence_no' in data: update_data['sequence_no'] = int(data['sequence_no'])
 
-        case["last_updated_by_user_name"] = "System"
-        case["last_updated_timestamp"] = get_thai_current_time_iso() 
+        update_data["last_updated_by_user_name"] = "System"
+        update_data["last_updated_timestamp"] = get_thai_current_time_iso() 
 
-        save_cases_data(cases_data)
-        logging.info(f"Case with ID {id} updated successfully.")
-        return jsonify(case)
+        case_ref.update(update_data) # Update specific fields
+        
+        # Fetch updated data to return in response
+        updated_doc = case_ref.get()
+        updated_case_data = updated_doc.to_dict()
+        updated_case_data['id'] = updated_doc.id
+
+        logging.info(f"Case with ID {id} updated successfully in Firestore.")
+        return jsonify(updated_case_data)
     except ValueError as e:
-        logging.error(f"ValueError when updating case {id}: {e}")
+        logging.error(f"ValueError when updating case {id} in Firestore: {e}")
         return jsonify({"message": "Invalid input for numeric fields"}), 400
     except Exception as e:
-        logging.error(f"Error updating case {id}: {e}")
-        return jsonify({"message": "Failed to update case data"}), 500
+        logging.error(f"Error updating case {id} in Firestore: {e}")
+        return jsonify({"message": "Failed to update case data in database"}), 500
 
-# 5. PATCH /api/cases/<id>/status - Update borrow/return status (no password required for this)
+# 5. PATCH /api/cases/<id>/status - Update borrow/return status
 @app.route('/api/cases/<id>/status', methods=['PATCH'])
-def update_case_status(id):
+async def update_case_status(id):
+    if db is None:
+        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
         data = request.json
-        case = next((c for c in cases_data if c['id'] == id), None)
-        if not case:
-            logging.warning(f"Case with ID {id} not found for status update.")
+        case_ref = db.collection('cases').document(id)
+        doc = case_ref.get()
+
+        if not doc.exists:
+            logging.warning(f"Case with ID {id} not found in Firestore for status update.")
             return jsonify({"message": "Case not found"}), 404
 
         action = data.get('action') 
@@ -288,53 +262,66 @@ def update_case_status(id):
              return jsonify({"message": "Missing action or borrower_name"}), 400
 
         current_timestamp = get_thai_current_time_iso() 
+        update_data = {}
 
         if action == 'borrow':
-            if case['status'] == 'Borrowed':
+            if doc.to_dict().get('status') == 'Borrowed':
                 return jsonify({"message": "Case is already borrowed"}), 409 
-            case['status'] = 'Borrowed'
-            case['borrowed_by_user_name'] = borrower_name
-            case['borrowed_date'] = current_timestamp
-            case['returned_date'] = None
-            logging.info(f"Case {id} status changed to Borrowed by {borrower_name}.")
+            update_data['status'] = 'Borrowed'
+            update_data['borrowed_by_user_name'] = borrower_name
+            update_data['borrowed_date'] = current_timestamp
+            update_data['returned_date'] = None # Clear returned date if borrowed
+            logging.info(f"Case {id} status changed to Borrowed by {borrower_name} in Firestore.")
         elif action == 'return':
-            if case['status'] == 'In Room':
+            if doc.to_dict().get('status') == 'In Room':
                 return jsonify({"message": "Case is already in room"}), 409
-            case['status'] = 'In Room'
-            case['returned_date'] = current_timestamp
-            logging.info(f"Case {id} status changed to In Room (returned) by {borrower_name}.")
+            update_data['status'] = 'In Room'
+            update_data['returned_date'] = current_timestamp
+            # Keep borrowed_by_user_name and borrowed_date as they are for history
+            logging.info(f"Case {id} status changed to In Room (returned) by {borrower_name} in Firestore.")
         else:
             logging.warning(f"Invalid action '{action}' for status update.")
             return jsonify({"message": "Invalid action"}), 400
 
-        case["last_updated_by_user_name"] = borrower_name
-        case["last_updated_timestamp"] = current_timestamp
+        update_data["last_updated_by_user_name"] = borrower_name
+        update_data["last_updated_timestamp"] = current_timestamp
 
-        save_cases_data(cases_data)
-        return jsonify(case)
+        case_ref.update(update_data) # Update specific fields
+
+        # Fetch updated data to return in response
+        updated_doc = case_ref.get()
+        updated_case_data = updated_doc.to_dict()
+        updated_case_data['id'] = updated_doc.id
+
+        return jsonify(updated_case_data)
     except Exception as e:
-        logging.error(f"Error updating case status for {id}: {e}")
-        return jsonify({"message": "Failed to update case status"}), 500
+        logging.error(f"Error updating case status for {id} in Firestore: {e}")
+        return jsonify({"message": "Failed to update case status in database"}), 500
 
-# 6. DELETE /api/cases/<id> - Delete a case (requires admin password in header)
+# 6. DELETE /api/cases/<id> - Delete a case
 @app.route('/api/cases/<id>', methods=['DELETE'])
 @admin_password_required 
-def delete_case(id):
-    global cases_data
+async def delete_case(id):
+    if db is None:
+        return jsonify({"message": "Database not initialized. Please check server logs."}), 500
     try:
-        initial_len = len(cases_data)
-        cases_data = [c for c in cases_data if c['id'] != id]
-        if len(cases_data) < initial_len:
-            save_cases_data(cases_data)
-            logging.info(f"Case with ID {id} deleted successfully.")
+        case_ref = db.collection('cases').document(id)
+        doc = case_ref.get()
+
+        if doc.exists:
+            case_ref.delete()
+            logging.info(f"Case with ID {id} deleted successfully from Firestore.")
             return jsonify({"message": "Case deleted successfully"}), 200
-        logging.warning(f"Case with ID {id} not found for deletion.")
-        return jsonify({"message": "Case not found"}), 404
+        else:
+            logging.warning(f"Case with ID {id} not found in Firestore for deletion.")
+            return jsonify({"message": "Case not found"}), 404
     except Exception as e:
-        logging.error(f"Error deleting case {id}: {e}")
-        return jsonify({"message": "Failed to delete case"}), 500
+        logging.error(f"Error deleting case {id} from Firestore: {e}")
+        return jsonify({"message": "Failed to delete case from database"}), 500
 
 # --- Main entry point for Flask (for local development and Render) ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    # Use async_mode='threading' for Flask-FireBase async operations
+    app.run(host='0.0.0.0', port=port, debug=True, threaded=True) 
+
